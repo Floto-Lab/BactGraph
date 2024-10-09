@@ -1,0 +1,30 @@
+{
+  "template": "https://github.com/scverse/cookiecutter-scverse",
+  "commit": "4a5673ef25162ce07e98b39e77f5bea06ec1461e",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "project_name": "BactGraph",
+      "package_name": "bactgraph",
+      "project_description": "A graph neural network for studying bacterial gene regulation",
+      "author_full_name": "Adam Dinan",
+      "author_email": "adam1989ie@gmail.com",
+      "github_user": "Floto-Lab",
+      "github_repo": "BactGraph",
+      "license": "MIT License",
+      "ide_integration": false,
+      "_copy_without_render": [
+        ".github/workflows/build.yaml",
+        ".github/workflows/test.yaml",
+        "docs/_templates/autosummary/**.rst"
+      ],
+      "_render_devdocs": false,
+      "_jinja2_env_vars": {
+        "lstrip_blocks": true,
+        "trim_blocks": true
+      },
+      "_template": "https://github.com/scverse/cookiecutter-scverse"
+    }
+  },
+  "directory": null
+}
