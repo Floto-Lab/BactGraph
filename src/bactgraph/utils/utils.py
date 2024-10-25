@@ -65,39 +65,3 @@ def read_edge_list(edge_list_path: str, threshold: float = 0, data_path: str = "
     edge_list.to_csv(fname, index=False, sep="\t")
 
     return edge_list
-
-
-def read_mic_data(mic_path: str, data_path: str = "./data") -> pd.DataFrame:
-    """
-    Read MIC data from file
-
-    Args:
-        mic_path (str): path to MIC data file
-        threshold (float): threshold for edge weights
-    """
-    fname = os.path.join(data_path, "mic_data.csv")
-
-    if os.path.exists(fname):
-        return pd.read_csv(fname, sep="\t")
-
-    mic_data = pd.read_csv(mic_path, sep="\t")
-
-    return mic_data
-
-
-def read_metadata(mic_path: str, data_path: str = "./data") -> pd.DataFrame:
-    """
-    Read MIC data from file
-
-    Args:
-        mic_path (str): path to MIC data file
-        threshold (float): threshold for edge weights
-    """
-    fname = os.path.join(data_path, "mic_data.csv")
-
-    if os.path.exists(fname):
-        return pd.read_csv(fname, sep="\t")
-
-    mic_data = pd.read_csv(mic_path, sep="\t")
-
-    return mic_data
