@@ -43,22 +43,45 @@ def load_config(config_path: str) -> dict:
 
 
 def load_and_process_data(args):
-    """Load and process input data"""
+    """Load and process adjacency matrix and expression data"""
     adj_df = pd.read_csv(args.adj_matrix, sep="\t", index_col=0)
+
+    # Create set of genes in the adjacency matrix
+    network_genes = set(adj_df.index) | set(adj_df.columns)
+    print(f"Number of genes in network: {len(network_genes)}")
+
     expr_df = pd.read_csv(args.expression_data, sep="\t", index_col=0)
+
+    expr_df = expr_df.loc[expr_df.index.isin(network_genes)]
+    print(f"Number of genes with expression data in network: {len(expr_df.index)}")
+
+    # Verify all genes in network have expression data
+    missing_genes = network_genes - set(expr_df.index)
+    if missing_genes:
+        print(f"Warning: {len(missing_genes)} genes in network missing from expression data:")
+        print(sorted(missing_genes))
+
     sample_ids = expr_df.columns.tolist()
+    print(f"Number of samples: {len(sample_ids)}")
 
     n_train = int(len(sample_ids) * args.train_split)
 
-    # Set random seed
     torch.manual_seed(args.seed)
 
-    # Randomly shuffle and split sample IDs
-    torch.randperm(len(sample_ids))
-    train_samples = sample_ids[:n_train]
-    val_samples = sample_ids[n_train:]
+    shuffled_indices = torch.randperm(len(sample_ids))
+    train_samples = [sample_ids[i] for i in shuffled_indices[:n_train]]
+    val_samples = [sample_ids[i] for i in shuffled_indices[n_train:]]
 
-    return adj_df, expr_df, train_samples, val_samples
+    # Subset adjacency matrix to genes with expression data
+    adj_df = adj_df.loc[expr_df.index, expr_df.index]
+
+    print("\nFinal dataset dimensions:")
+    print(f"Adjacency matrix: {adj_df.shape}")
+    print(f"Expression matrix: {expr_df.shape}")
+    print(f"Training samples: {len(train_samples)}")
+    print(f"Validation samples: {len(val_samples)}")
+
+    return adj_df, expr_df, train_samples, val_samples, network_genes
 
 
 def train(
@@ -121,6 +144,9 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     adj_df, expr_df, train_samples, val_samples = load_and_process_data(args)
+
+    print(adj_df)
+    print(expr_df)
 
     # Create datasets
     train_dataset = ProteinExpressionDataset(
