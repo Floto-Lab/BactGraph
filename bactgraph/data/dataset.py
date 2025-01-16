@@ -1,13 +1,12 @@
 from pathlib import Path
 
 import networkx as nx
-import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
 
-class ProteinExpressionDataset(Dataset):
+class ExpressionDataset(Dataset):
     """Dataset for protein expression prediction using GAT."""
 
     def __init__(
@@ -19,7 +18,7 @@ class ProteinExpressionDataset(Dataset):
         device: str = "cuda",
     ):
         """
-        Dataset for protein expression prediction using GAT.
+        Initialize the dataset.
 
         Args:
             embeddings_dir: Directory containing ESM-2 embeddings
@@ -47,23 +46,24 @@ class ProteinExpressionDataset(Dataset):
         sample_embedding = self._load_sample_embedding(sample_ids[0])
         self.embedding_dim = next(iter(sample_embedding.values())).shape[0]
 
-    # TODO: Implement loading of ESM-2 embeddings
-    def _load_sample_embedding(self, sample_id: str) -> dict[str, np.ndarray]:
+    def _load_sample_embedding(self, sample_id: str) -> dict[str, torch.Tensor]:
         """Load embeddings for a single sample from file"""
         embedding_path = self.embeddings_dir / f"{sample_id}.npy"
-        return np.load(embedding_path, allow_pickle=True).item()
+        return torch.load(embedding_path)
 
     def __len__(self) -> int:
         return len(self.sample_ids)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Get item at index
+        """
+        Get item at index.
 
         Returns
         -------
-            node_features: Tensor of shape [num_nodes, embedding_dim]
-            adj_matrix: Tensor of shape [num_nodes, num_nodes]
-            expression_values: Tensor of shape [num_nodes]
+            Tuple of:
+            - node_features: Tensor of shape [num_nodes, embedding_dim]
+            - adj_matrix: Tensor of shape [num_nodes, num_nodes]
+            - expression_values: Tensor of shape [num_nodes]
         """
         sample_id = self.sample_ids[idx]
 
