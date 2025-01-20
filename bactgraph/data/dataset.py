@@ -35,15 +35,10 @@ class EmbeddingDataset(Dataset):
         return len(self.sample_ids)
 
     def __getitem__(self, idx: int) -> tuple[tuple[torch.Tensor, torch.Tensor], torch.Tensor, torch.Tensor]:
-        """Get item from dataset.
-
-        Returns
-        -------
-            Tuple of ((regulator_features, target_features), adj_matrix, expression_values)
-        """
+        """Get item from dataset."""
         sample_id = self.sample_ids[idx]
 
-        # Create node feature matrices for regulators and targets
+        # node feature matrices for regulators and targets
         regulator_features = torch.stack([self.embeddings[node] for node in self.regulator_order]).to(
             self.device
         )  # [num_regulators, embedding_dim]
@@ -52,12 +47,12 @@ class EmbeddingDataset(Dataset):
             self.device
         )  # [num_targets, embedding_dim]
 
-        # Create adjacency matrix tensor [num_regulators, num_targets]
+        # adjacency matrix tensor [num_regulators, num_targets]
         adj_matrix = torch.FloatTensor(self.adj_matrix.loc[self.regulator_order, self.target_order].values).to(
             self.device
         )
 
-        # Get expression values for target genes [num_targets]
+        # expression values for target genes [num_targets]
         target_expression = torch.FloatTensor(
             [self.expression_data.loc[node, sample_id] for node in self.target_order]
         ).to(self.device)
@@ -67,5 +62,10 @@ class EmbeddingDataset(Dataset):
         target_features = target_features.unsqueeze(0)  # [1, num_targets, embedding_dim]
         adj_matrix = adj_matrix.unsqueeze(0)  # [1, num_regulators, num_targets]
         target_expression = target_expression.unsqueeze(0)  # [1, num_targets]
+
+        if len(regulator_features.shape) > 3:
+            regulator_features = regulator_features.reshape(1, regulator_features.size(1), -1)
+        if len(target_features.shape) > 3:
+            target_features = target_features.reshape(1, target_features.size(1), -1)
 
         return (regulator_features, target_features), adj_matrix, target_expression

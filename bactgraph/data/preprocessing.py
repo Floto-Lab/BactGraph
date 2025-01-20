@@ -31,7 +31,7 @@ def get_embedding_for_proteins(
 
     return (
         {
-            protein: torch.tensor(np.array(embeddings), dtype=torch.float32)
+            protein: torch.tensor(np.array(embeddings), dtype=torch.float32).reshape(-1)
             for protein, embeddings in embedding_dict.items()
         },
         list(samples_with_embeddings),
