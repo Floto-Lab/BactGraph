@@ -30,6 +30,10 @@ class EmbeddingDataset(Dataset):
         first_embedding = next(iter(embeddings_dict.values()))
         self.embedding_dim = first_embedding.shape[0]
 
+    def __len__(self) -> int:
+        """Return the number of samples in the dataset."""
+        return len(self.sample_ids)
+
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Get item from dataset.
 
