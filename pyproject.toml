@@ -23,10 +23,11 @@ classifiers = [
 ]
 dependencies = [
   "anndata",
-  "networkx",
+  "numpy",
   "pandas",
   "pyarrow",
   "pyyaml",
+  "scikit-learn",
   "session-info",
   "torch",
 ]
