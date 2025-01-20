@@ -1,5 +1,5 @@
 model:
-  input_dim: 1280 # ESM-2 embedding dimension
+  input_dim: 480 # ESM-2 embedding dimension
   hidden_dims: [256, 128] # Hidden layer dimensions
   output_dim: 1 # Predict single expression value per gene
   n_heads: [4, 4, 1] # Number of attention heads for input, hidden, and output layers

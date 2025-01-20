@@ -15,6 +15,7 @@ def get_embedding_for_proteins(
 
     if not valid_proteins:
         raise ValueError("None of the requested proteins found in the dataset")
+
     print(f"Loading embeddings for {len(valid_proteins)} proteins...")
     sample_filter = pc.field("sample").isin(list(sample_ids))
     columns_to_read = valid_proteins + ["sample"]
