@@ -1,11 +1,10 @@
-import networkx as nx
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
 
 class EmbeddingDataset(Dataset):
-    """Dataset for protein expression prediction using pre-loaded embeddings."""
+    """Dataset class for gene embeddings and expression data."""
 
     def __init__(
         self,
@@ -21,16 +20,15 @@ class EmbeddingDataset(Dataset):
         self.expression_data = expression_data
         self.sample_ids = sample_ids
 
-        # Create node ordering for consistent tensor creation
-        self.node_order = sorted(adj_matrix.index)
-        self.node_to_idx = {node: idx for idx, node in enumerate(self.node_order)}
+        # Create separate orderings for regulators and targets
+        self.regulator_order = sorted(adj_matrix.index)
+        self.target_order = sorted(adj_matrix.columns)
+        self.regulator_to_idx = {node: idx for idx, node in enumerate(self.regulator_order)}
+        self.target_to_idx = {node: idx for idx, node in enumerate(self.target_order)}
 
         # Get embedding dimension from first embedding
         first_embedding = next(iter(embeddings_dict.values()))
         self.embedding_dim = first_embedding.shape[0]
-
-    def __len__(self) -> int:
-        return len(self.sample_ids)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Get item from dataset.
@@ -41,85 +39,18 @@ class EmbeddingDataset(Dataset):
         """
         sample_id = self.sample_ids[idx]
 
-        # Create node feature matrix using pre-loaded embeddings
-        node_features = torch.stack([self.embeddings[node] for node in self.node_order]).to(self.device)
+        # Create node feature matrices for both regulators and targets
+        regulator_features = torch.stack([self.embeddings[node] for node in self.regulator_order]).to(self.device)
+        target_features = torch.stack([self.embeddings[node] for node in self.target_order]).to(self.device)
 
-        # Create adjacency matrix tensor
-        adj_matrix = torch.FloatTensor(self.adj_matrix.loc[self.node_order, self.node_order].values).to(self.device)
+        # Create asymmetric adjacency matrix tensor
+        adj_matrix = torch.FloatTensor(self.adj_matrix.loc[self.regulator_order, self.target_order].values).to(
+            self.device
+        )
 
-        # Get expression values
-        expression_values = torch.FloatTensor(
-            [self.expression_data.loc[node, sample_id] for node in self.node_order]
+        # Get expression values for target genes
+        target_expression = torch.FloatTensor(
+            [self.expression_data.loc[node, sample_id] for node in self.target_order]
         ).to(self.device)
 
-        return node_features, adj_matrix, expression_values
-
-
-class ExpressionDataset(Dataset):
-    """Dataset for protein expression prediction using GAT."""
-
-    def __init__(
-        self,
-        embeddings: pd.DataFrame,
-        adjacency_matrix: pd.DataFrame,
-        expression_data: pd.DataFrame,
-        sample_ids: list[str],
-        device: str = "cuda",
-    ):
-        """
-        Initialize the dataset.
-
-        Args:
-            embeddings: DataFrame containing protein embeddings
-            adjacency_matrix: DataFrame containing adjacency matrix
-            expression_data: DataFrame containing expression data
-            sample_ids: List of sample IDs to use
-            device: Device to load tensors to
-        """
-        self.device = device
-        self.embeddings = embeddings
-        self.sample_ids = sample_ids
-
-        # Create networkx graph from adjacency matrix
-        # Transpose because we want edges from source to target
-        self.graph = nx.from_pandas_adjacency(adjacency_matrix.T, create_using=nx.DiGraph)
-
-        # Store expression data
-        self.expression_data = expression_data
-
-        # Create node ordering for consistent tensor creation
-        self.node_order = sorted(self.graph.nodes())
-        self.node_to_idx = {node: idx for idx, node in enumerate(self.node_order)}
-
-        # Get embedding dimension
-        self.embedding_dim = len(embeddings.columns)
-
-    def __len__(self) -> int:
-        return len(self.sample_ids)
-
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Get item at index.
-
-        Returns
-        -------
-            Tuple of:
-            - node_features: Tensor of shape [num_nodes, embedding_dim]
-            - adj_matrix: Tensor of shape [num_nodes, num_nodes]
-            - expression_values: Tensor of shape [num_nodes]
-        """
-        sample_id = self.sample_ids[idx]
-
-        # Get embeddings for all nodes
-        node_features = torch.FloatTensor(self.embeddings.loc[self.node_order].values).to(self.device)
-
-        # Create adjacency matrix tensor
-        adj_matrix = nx.to_numpy_array(self.graph, nodelist=self.node_order)
-        adj_matrix = torch.FloatTensor(adj_matrix).to(self.device)
-
-        # Get expression values for this sample
-        expression_values = torch.FloatTensor(
-            [self.expression_data.loc[node, sample_id] for node in self.node_order]
-        ).to(self.device)
-
-        return node_features, adj_matrix, expression_values
+        return (regulator_features, target_features), adj_matrix, target_expression

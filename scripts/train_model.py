@@ -318,7 +318,8 @@ def main():
     # Initialize model
     print("\nInitializing model...")
     model = GAT(
-        input_dim=config["model"]["input_dim"],
+        regulator_dim=config["model"]["input_dim"],
+        target_dim=config["model"]["input_dim"],
         hidden_dims=config["model"]["hidden_dims"],
         output_dim=config["model"]["output_dim"],
         n_heads=config["model"]["n_heads"],
