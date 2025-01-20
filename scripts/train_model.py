@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -8,6 +9,7 @@ import yaml
 from bactgraph.data.dataset import EmbeddingDataset
 from bactgraph.data.preprocessing import create_dataset_splits, load_and_validate_data
 from bactgraph.models.gat import GAT
+from sklearn.metrics import r2_score
 from torch.utils.data import DataLoader
 
 
@@ -201,33 +203,25 @@ def main():
     print("Evaluating best model on test set...")
     best_model = torch.load(Path(args.output_dir) / "best_model.pt")
     model.load_state_dict(best_model["model_state_dict"])
-    test_loss = evaluate(model, test_loader, criterion, device)
+    test_metrics = evaluate(model, test_loader, criterion, device)
 
     results = {
-        "test_loss": test_loss,
-        "train_loss": best_model["train_loss"],
-        "val_loss": best_model["val_loss"],
-        "epochs_trained": best_model["epoch"],
+        "test_metrics": test_metrics,
+        "model_info": {
+            "train_loss": best_model["train_loss"],
+            "val_loss": best_model["val_loss"],
+            "epochs_trained": best_model["epoch"],
+        },
     }
     torch.save(results, Path(args.output_dir) / "evaluation_results.pt")
 
 
-def evaluate(model: nn.Module, test_loader: DataLoader, criterion: nn.Module, device: str) -> float:
-    """
-    Evaluate model on test set.
-
-    Args:
-        model: Trained GAT model
-        test_loader: DataLoader for test set
-        criterion: Loss function
-        device: Device to run evaluation on
-
-    Returns
-    -------
-        Test loss
-    """
+def evaluate(model: nn.Module, test_loader: DataLoader, criterion: nn.Module, device: str) -> dict:
+    """Evaluate model on test set with multiple metrics"""
     model.eval()
     test_loss = 0
+    all_preds = []
+    all_labels = []
 
     with torch.no_grad():
         for features, adj, labels in test_loader:
@@ -238,10 +232,25 @@ def evaluate(model: nn.Module, test_loader: DataLoader, criterion: nn.Module, de
             predictions, _ = model(features, adj)
             test_loss += criterion(predictions.squeeze(), labels).item()
 
-    avg_test_loss = test_loss / len(test_loader)
-    print(f"Test Loss: {avg_test_loss:.4f}")
+            all_preds.append(predictions.cpu())
+            all_labels.append(labels.cpu())
 
-    return avg_test_loss
+    # Combine predictions and labels
+    predictions = torch.cat(all_preds, dim=0).numpy()
+    labels = torch.cat(all_labels, dim=0).numpy()
+
+    metrics = {
+        "mse": test_loss / len(test_loader),
+        "mae": np.mean(np.abs(predictions - labels)),
+        "r2": r2_score(labels, predictions),
+        "correlation": np.corrcoef(predictions.ravel(), labels.ravel())[0, 1],
+    }
+
+    print("\nTest Set Evaluation:")
+    for metric, value in metrics.items():
+        print(f"{metric.upper()}: {value:.4f}")
+
+    return metrics
 
 
 if __name__ == "__main__":
