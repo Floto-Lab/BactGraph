@@ -23,8 +23,12 @@ classifiers = [
 ]
 dependencies = [
   "anndata",
-  # for debug logging (referenced from the issue template)
+  "networkx",
+  "pandas",
+  "pyarrow",
+  "pyyaml",
   "session-info",
+  "torch",
 ]
 optional-dependencies.dev = [
   "pre-commit",
