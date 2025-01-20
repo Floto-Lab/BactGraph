@@ -79,13 +79,14 @@ def train_epoch(
     total_loss = 0
     all_metrics = []
 
-    for features, adj, labels in train_loader:
-        features = features.to(device)
+    for (regulator_features, target_features), adj, labels in train_loader:
+        regulator_features = regulator_features.to(device)
+        target_features = target_features.to(device)
         adj = adj.to(device)
         labels = labels.to(device)
 
         # Forward pass
-        predictions, attention_weights = model(features, adj)
+        predictions, attention_weights = model((regulator_features, target_features), adj)
         loss = criterion(predictions.squeeze(), labels)
 
         # Backward pass
@@ -102,7 +103,6 @@ def train_epoch(
         attention_metrics = analyze_attention_weights(attention_weights, adj)
         all_metrics[-1].update(attention_metrics)
 
-    # Average metrics across batches
     avg_metrics = {k: np.mean([m[k] for m in all_metrics]) for k in all_metrics[0].keys()}
 
     return total_loss / len(train_loader), avg_metrics
@@ -120,12 +120,13 @@ def validate(
     all_metrics = []
 
     with torch.no_grad():
-        for features, adj, labels in val_loader:
-            features = features.to(device)
+        for (regulator_features, target_features), adj, labels in val_loader:
+            regulator_features = regulator_features.to(device)
+            target_features = target_features.to(device)
             adj = adj.to(device)
             labels = labels.to(device)
 
-            predictions, attention_weights = model(features, adj)
+            predictions, attention_weights = model((regulator_features, target_features), adj)
             loss = criterion(predictions.squeeze(), labels)
 
             batch_metrics = compute_metrics(predictions.squeeze(), labels)
