@@ -8,30 +8,136 @@ import torch.optim as optim
 import yaml
 from bactgraph.data.dataset import EmbeddingDataset
 from bactgraph.data.preprocessing import create_dataset_splits, load_and_validate_data
-from bactgraph.models.gat import GAT
+from bactgraph.models.gat import ImprovedGAT
 from sklearn.metrics import r2_score
 from torch.utils.data import DataLoader
 
 
-def parse_args():
-    """Parse command-line arguments"""
-    parser = argparse.ArgumentParser(description="Train GAT model for protein expression prediction")
-    parser.add_argument("--adj-matrix", type=str, required=True, help="Path to adjacency matrix (tab-delimited)")
-    parser.add_argument("--expression-data", type=str, required=True, help="Path to expression data (tab-delimited)")
-    parser.add_argument("--embeddings-path", type=str, required=True, help="Path to embeddings parquet file")
-    parser.add_argument("--config", type=str, default="configs/config.yaml", help="Path to config file")
-    parser.add_argument("--train-split", type=float, default=0.7, help="Fraction of samples to use for training")
-    parser.add_argument("--val-split", type=float, default=0.15, help="Fraction of samples to use for validation")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--output-dir", type=str, default="models", help="Directory to save model checkpoints")
+class EarlyStopping:
+    """Early stopping handler to prevent overfitting"""
 
-    return parser.parse_args()
+    def __init__(self, patience: int = 10, min_delta: float = 0):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.best_loss = None
+        self.early_stop = False
+
+    def __call__(self, val_loss: float) -> bool:
+        """Check if early stopping criteria are met"""
+        if self.best_loss is None:
+            self.best_loss = val_loss
+        elif val_loss > self.best_loss - self.min_delta:
+            self.counter += 1
+            if self.counter >= self.patience:
+                return True
+        else:
+            self.best_loss = val_loss
+            self.counter = 0
+        return False
 
 
-def load_config(config_path: str) -> dict:
-    """Load configuration file"""
-    with open(config_path) as f:
-        return yaml.safe_load(f)
+def compute_metrics(predictions: torch.Tensor, labels: torch.Tensor) -> dict[str, float]:
+    """Compute various regression metrics"""
+    predictions = predictions.detach().cpu().numpy()
+    labels = labels.detach().cpu().numpy()
+
+    return {
+        "mse": np.mean((predictions - labels) ** 2),
+        "mae": np.mean(np.abs(predictions - labels)),
+        "r2": r2_score(labels, predictions),
+        "correlation": np.corrcoef(predictions.ravel(), labels.ravel())[0, 1],
+    }
+
+
+def analyze_attention_weights(attention_weights: list[torch.Tensor], adj_matrix: torch.Tensor) -> dict[str, float]:
+    """Analyze attention weight patterns"""
+    metrics = {}
+
+    # For each attention layer
+    for layer_idx, layer_weights in enumerate(attention_weights):
+        # Average attention to connected vs unconnected nodes
+        connected_attention = layer_weights[adj_matrix == 1].mean().item()
+        unconnected_attention = layer_weights[adj_matrix == 0].mean().item()
+
+        metrics[f"layer_{layer_idx}_connected_attention"] = connected_attention
+        metrics[f"layer_{layer_idx}_unconnected_attention"] = unconnected_attention
+        metrics[f"layer_{layer_idx}_attention_ratio"] = connected_attention / (unconnected_attention + 1e-10)
+
+    return metrics
+
+
+def train_epoch(
+    model: nn.Module,
+    train_loader: DataLoader,
+    optimizer: optim.Optimizer,
+    criterion: nn.Module,
+    device: str,
+) -> tuple[float, dict[str, float]]:
+    """Train for one epoch"""
+    model.train()
+    total_loss = 0
+    all_metrics = []
+
+    for features, adj, labels in train_loader:
+        features = features.to(device)
+        adj = adj.to(device)
+        labels = labels.to(device)
+
+        # Forward pass
+        predictions, attention_weights = model(features, adj)
+        loss = criterion(predictions.squeeze(), labels)
+
+        # Backward pass
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        # Compute metrics
+        batch_metrics = compute_metrics(predictions.squeeze(), labels)
+        all_metrics.append(batch_metrics)
+        total_loss += loss.item()
+
+        # Analyze attention patterns
+        attention_metrics = analyze_attention_weights(attention_weights, adj)
+        all_metrics[-1].update(attention_metrics)
+
+    # Average metrics across batches
+    avg_metrics = {k: np.mean([m[k] for m in all_metrics]) for k in all_metrics[0].keys()}
+
+    return total_loss / len(train_loader), avg_metrics
+
+
+def validate(
+    model: nn.Module,
+    val_loader: DataLoader,
+    criterion: nn.Module,
+    device: str,
+) -> tuple[float, dict[str, float]]:
+    """Validate the model"""
+    model.eval()
+    total_loss = 0
+    all_metrics = []
+
+    with torch.no_grad():
+        for features, adj, labels in val_loader:
+            features = features.to(device)
+            adj = adj.to(device)
+            labels = labels.to(device)
+
+            predictions, attention_weights = model(features, adj)
+            loss = criterion(predictions.squeeze(), labels)
+
+            batch_metrics = compute_metrics(predictions.squeeze(), labels)
+            attention_metrics = analyze_attention_weights(attention_weights, adj)
+
+            batch_metrics.update(attention_metrics)
+            all_metrics.append(batch_metrics)
+            total_loss += loss.item()
+
+    avg_metrics = {k: np.mean([m[k] for m in all_metrics]) for k in all_metrics[0].keys()}
+
+    return total_loss / len(val_loader), avg_metrics
 
 
 def train(
@@ -43,75 +149,56 @@ def train(
     num_epochs: int,
     device: str,
     output_dir: Path,
-) -> None:
-    """Train GAT model
-
-    Args:
-        model: GAT model
-        train_loader: Training data loader
-        val_loader: Validation data loader
-        optimizer: Model optimizer
-        criterion: Loss function
-        num_epochs: Number of epochs to train for
-        device: Device to train on
-        output_dir: Directory to save model checkpoints
-    """
-    best_val_loss = float("inf")
+    patience: int = 10,
+) -> dict:
+    """Train the model with early stopping and detailed monitoring"""
     output_dir = Path(output_dir)
     output_dir.mkdir(exist_ok=True, parents=True)
 
+    early_stopping = EarlyStopping(patience=patience)
+    best_val_loss = float("inf")
+    training_history = []
+
     for epoch in range(num_epochs):
         # Training phase
-        model.train()
-        train_loss = 0
-
-        for _batch_idx, (features, adj, labels) in enumerate(train_loader):
-            features = features.to(device)
-            adj = adj.to(device)
-            labels = labels.to(device)
-
-            # Forward pass
-            predictions, _ = model(features, adj)
-            loss = criterion(predictions.squeeze(), labels)
-
-            # Backward pass
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            train_loss += loss.item()
-
-        avg_train_loss = train_loss / len(train_loader)
+        train_loss, train_metrics = train_epoch(model, train_loader, optimizer, criterion, device)
 
         # Validation phase
-        model.eval()
-        val_loss = 0
+        val_loss, val_metrics = validate(model, val_loader, criterion, device)
 
-        with torch.no_grad():
-            for features, adj, labels in val_loader:
-                features = features.to(device)
-                adj = adj.to(device)
-                labels = labels.to(device)
+        # Log metrics
+        epoch_stats = {
+            "epoch": epoch,
+            "train_loss": train_loss,
+            "val_loss": val_loss,
+            "train_metrics": train_metrics,
+            "val_metrics": val_metrics,
+        }
+        training_history.append(epoch_stats)
 
-                predictions, _ = model(features, adj)
-                val_loss += criterion(predictions.squeeze(), labels).item()
+        # Print progress
+        print(f"\nEpoch {epoch+1}/{num_epochs}")
+        print(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+        print(f"Train R2: {train_metrics['r2']:.4f}, Val R2: {val_metrics['r2']:.4f}")
 
-        avg_val_loss = val_loss / len(val_loader)
-
-        print(f"Epoch {epoch+1}/{num_epochs}")
-        print(f"Train Loss: {avg_train_loss:.4f}")
-        print(f"Val Loss: {avg_val_loss:.4f}")
+        # Save attention analysis
+        print("\nAttention Analysis:")
+        for k, v in val_metrics.items():
+            if "attention" in k:
+                print(f"{k}: {v:.4f}")
 
         # Save best model
-        if avg_val_loss < best_val_loss:
-            best_val_loss = avg_val_loss
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
             torch.save(
                 {
                     "epoch": epoch,
                     "model_state_dict": model.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
-                    "train_loss": avg_train_loss,
-                    "val_loss": avg_val_loss,
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "train_metrics": train_metrics,
+                    "val_metrics": val_metrics,
                 },
                 output_dir / "best_model.pt",
             )
@@ -122,27 +209,62 @@ def train(
                 "epoch": epoch,
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
-                "train_loss": avg_train_loss,
-                "val_loss": avg_val_loss,
+                "train_loss": train_loss,
+                "val_loss": val_loss,
+                "train_metrics": train_metrics,
+                "val_metrics": val_metrics,
             },
             output_dir / "latest_model.pt",
         )
 
+        # Save training history
+        torch.save(training_history, output_dir / "training_history.pt")
+
+        # Early stopping check
+        if early_stopping(val_loss):
+            print(f"\nEarly stopping triggered after {epoch + 1} epochs")
+            break
+
+    return training_history
+
 
 def main():
-    """Train GAT model for protein expression prediction"""
-    args = parse_args()
-    config = load_config(args.config)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    """Train GAT model with improved monitoring"""
+    parser = argparse.ArgumentParser(description="Train GAT model for protein expression prediction")
+    parser.add_argument("--adj-matrix", type=str, required=True, help="Path to adjacency matrix")
+    parser.add_argument("--expression-data", type=str, required=True, help="Path to expression data")
+    parser.add_argument("--embeddings-path", type=str, required=True, help="Path to embeddings")
+    parser.add_argument("--config", type=str, default="configs/config.yaml", help="Path to config")
+    parser.add_argument("--train-split", type=float, default=0.7, help="Training data fraction")
+    parser.add_argument("--val-split", type=float, default=0.15, help="Validation data fraction")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--output-dir", type=str, default="models", help="Output directory")
+    parser.add_argument("--patience", type=int, default=10, help="Early stopping patience")
 
-    adj_df, expr_df, embeddings_dict, _ = load_and_validate_data(
+    args = parser.parse_args()
+
+    # Load config
+    with open(args.config) as f:
+        config = yaml.safe_load(f)
+
+    # Set device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    # Load data
+    adj_df, expr_df, embeddings_dict, genes_with_embeddings = load_and_validate_data(
         args.adj_matrix, args.expression_data, args.embeddings_path
     )
 
+    # Create data splits
     train_samples, val_samples, test_samples = create_dataset_splits(
-        expr_df.columns.tolist(), train_split=args.train_split, val_split=args.val_split, seed=args.seed
+        expr_df.columns.tolist(),
+        train_split=args.train_split,
+        val_split=args.val_split,
+        seed=args.seed,
     )
 
+    # Create datasets
     train_dataset = EmbeddingDataset(
         embeddings_dict=embeddings_dict,
         adj_matrix=adj_df,
@@ -168,20 +290,30 @@ def main():
     )
 
     # Create data loaders
-    train_loader = DataLoader(train_dataset, batch_size=config["training"]["batch_size"], shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=config["training"]["batch_size"], shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=config["training"]["batch_size"], shuffle=False)
-
-    # Save test set indices for later evaluation
-    torch.save(
-        {
-            "test_samples": test_samples,
-        },
-        f"{args.output_dir}/test_split.pt",
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=config["training"]["batch_size"],
+        shuffle=True,
     )
 
-    print("Initializing model...")
-    model = GAT(
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=config["training"]["batch_size"],
+        shuffle=False,
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=config["training"]["batch_size"],
+        shuffle=False,
+    )
+
+    # Save test samples for later evaluation
+    torch.save({"test_samples": test_samples}, Path(args.output_dir) / "test_split.pt")
+
+    # Initialize model
+    print("\nInitializing model...")
+    model = ImprovedGAT(
         input_dim=config["model"]["input_dim"],
         hidden_dims=config["model"]["hidden_dims"],
         output_dim=config["model"]["output_dim"],
@@ -189,69 +321,51 @@ def main():
         dropout=config["model"]["dropout"],
     ).to(device)
 
+    # Initialize optimizer and loss
     optimizer = optim.Adam(
-        model.parameters(), lr=config["training"]["learning_rate"], weight_decay=config["training"]["weight_decay"]
+        model.parameters(),
+        lr=config["training"]["learning_rate"],
+        weight_decay=config["training"]["weight_decay"],
     )
-
     criterion = nn.MSELoss()
 
     # Train model
-    print("Starting training...")
-    train(
-        model, train_loader, val_loader, optimizer, criterion, config["training"]["num_epochs"], device, args.output_dir
+    print("\nStarting training...")
+    training_history = train(
+        model,
+        train_loader,
+        val_loader,
+        optimizer,
+        criterion,
+        config["training"]["num_epochs"],
+        device,
+        args.output_dir,
+        args.patience,
     )
 
-    print("Evaluating best model on test set...")
+    # Final evaluation on test set
+    print("\nEvaluating best model on test set...")
     best_model = torch.load(Path(args.output_dir) / "best_model.pt")
     model.load_state_dict(best_model["model_state_dict"])
-    test_metrics = evaluate(model, test_loader, criterion, device)
+    test_loss, test_metrics = validate(model, test_loader, criterion, device)
 
     results = {
+        "test_loss": test_loss,
         "test_metrics": test_metrics,
+        "training_history": training_history,
         "model_info": {
             "train_loss": best_model["train_loss"],
             "val_loss": best_model["val_loss"],
             "epochs_trained": best_model["epoch"],
         },
     }
+
     torch.save(results, Path(args.output_dir) / "evaluation_results.pt")
 
-
-def evaluate(model: nn.Module, test_loader: DataLoader, criterion: nn.Module, device: str) -> dict:
-    """Evaluate model on test set with multiple metrics"""
-    model.eval()
-    test_loss = 0
-    all_preds = []
-    all_labels = []
-
-    with torch.no_grad():
-        for features, adj, labels in test_loader:
-            features = features.to(device)
-            adj = adj.to(device)
-            labels = labels.to(device)
-
-            predictions, _ = model(features, adj)
-            test_loss += criterion(predictions.squeeze(), labels).item()
-
-            all_preds.append(predictions.cpu())
-            all_labels.append(labels.cpu())
-
-    # Combine predictions and labels
-    predictions = torch.cat(all_preds, dim=0).numpy()
-    labels = torch.cat(all_labels, dim=0).numpy()
-
-    metrics = {
-        "mse": test_loss / len(test_loader),
-        "mae": np.mean(np.abs(predictions - labels)),
-        "r2": r2_score(labels, predictions),
-        "correlation": np.corrcoef(predictions.ravel(), labels.ravel())[0, 1],
-    }
-
-    print("\nTest Set Evaluation:")
-    for metric, value in metrics.items():
-        print(f"{metric.upper()}: {value:.4f}")
-
-    return metrics
+    print("\nTest Set Metrics:")
+    for metric, value in test_metrics.items():
+        if "attention" not in metric:  # Only print main metrics
+            print(f"{metric}: {value:.4f}")
 
 
 if __name__ == "__main__":
