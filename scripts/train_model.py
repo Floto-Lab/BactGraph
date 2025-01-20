@@ -8,7 +8,7 @@ import torch.optim as optim
 import yaml
 from bactgraph.data.dataset import EmbeddingDataset
 from bactgraph.data.preprocessing import create_dataset_splits, load_and_validate_data
-from bactgraph.models.gat import ImprovedGAT
+from bactgraph.models.gat import GAT
 from sklearn.metrics import r2_score
 from torch.utils.data import DataLoader
 
@@ -313,7 +313,7 @@ def main():
 
     # Initialize model
     print("\nInitializing model...")
-    model = ImprovedGAT(
+    model = GAT(
         input_dim=config["model"]["input_dim"],
         hidden_dims=config["model"]["hidden_dims"],
         output_dim=config["model"]["output_dim"],
