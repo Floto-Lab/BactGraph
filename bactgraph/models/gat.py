@@ -100,7 +100,6 @@ class GAT(nn.Module):
     ):
         super().__init__()
 
-        # Input layer
         self.input_layer = MessagePassingGATLayer(
             regulator_dim=regulator_dim,
             target_dim=target_dim,
@@ -109,7 +108,6 @@ class GAT(nn.Module):
             dropout=dropout,
         )
 
-        # Hidden layers
         layers = []
         for i in range(len(hidden_dims) - 1):
             layers.append(
@@ -123,7 +121,6 @@ class GAT(nn.Module):
             )
         self.hidden_layers = nn.ModuleList(layers)
 
-        # Output layer
         self.output_layer = nn.Linear(hidden_dims[-1] * n_heads[-1], output_dim)
         self.dropout = nn.Dropout(dropout)
 
