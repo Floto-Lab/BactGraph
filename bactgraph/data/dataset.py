@@ -34,27 +34,38 @@ class EmbeddingDataset(Dataset):
         """Return the number of samples in the dataset."""
         return len(self.sample_ids)
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> tuple[tuple[torch.Tensor, torch.Tensor], torch.Tensor, torch.Tensor]:
         """Get item from dataset.
 
         Returns
         -------
-            Tuple of (node_features, adj_matrix, expression_values)
+            Tuple of ((regulator_features, target_features), adj_matrix, expression_values)
         """
         sample_id = self.sample_ids[idx]
 
-        # Create node feature matrices for both regulators and targets
-        regulator_features = torch.stack([self.embeddings[node] for node in self.regulator_order]).to(self.device)
-        target_features = torch.stack([self.embeddings[node] for node in self.target_order]).to(self.device)
+        # Create node feature matrices for regulators and targets
+        regulator_features = torch.stack([self.embeddings[node] for node in self.regulator_order]).to(
+            self.device
+        )  # [num_regulators, embedding_dim]
 
-        # Create asymmetric adjacency matrix tensor
+        target_features = torch.stack([self.embeddings[node] for node in self.target_order]).to(
+            self.device
+        )  # [num_targets, embedding_dim]
+
+        # Create adjacency matrix tensor [num_regulators, num_targets]
         adj_matrix = torch.FloatTensor(self.adj_matrix.loc[self.regulator_order, self.target_order].values).to(
             self.device
         )
 
-        # Get expression values for target genes
+        # Get expression values for target genes [num_targets]
         target_expression = torch.FloatTensor(
             [self.expression_data.loc[node, sample_id] for node in self.target_order]
         ).to(self.device)
+
+        # Add batch dimension of 1 to all tensors
+        regulator_features = regulator_features.unsqueeze(0)  # [1, num_regulators, embedding_dim]
+        target_features = target_features.unsqueeze(0)  # [1, num_targets, embedding_dim]
+        adj_matrix = adj_matrix.unsqueeze(0)  # [1, num_regulators, num_targets]
+        target_expression = target_expression.unsqueeze(0)  # [1, num_targets]
 
         return (regulator_features, target_features), adj_matrix, target_expression
