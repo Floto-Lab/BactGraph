@@ -20,7 +20,8 @@ def parse_args():
     parser.add_argument("--expression-data", type=str, required=True, help="Path to expression data (tab-delimited)")
     parser.add_argument("--embeddings-path", type=str, required=True, help="Path to embeddings parquet file")
     parser.add_argument("--config", type=str, default="configs/config.yaml", help="Path to config file")
-    parser.add_argument("--train-split", type=float, default=0.8, help="Fraction of samples to use for training")
+    parser.add_argument("--train-split", type=float, default=0.7, help="Fraction of samples to use for training")
+    parser.add_argument("--val-split", type=float, default=0.15, help="Fraction of samples to use for validation")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--output-dir", type=str, default="models", help="Directory to save model checkpoints")
 
@@ -139,7 +140,7 @@ def main():
     )
 
     train_samples, val_samples, test_samples = create_dataset_splits(
-        expr_df.columns.tolist(), train_split=0.7, val_split=0.15, seed=args.seed
+        expr_df.columns.tolist(), train_split=args.train_split, val_split=args.val_split, seed=args.seed
     )
 
     train_dataset = EmbeddingDataset(
