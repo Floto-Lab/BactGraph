@@ -243,6 +243,10 @@ def main():
 
     args = parser.parse_args()
 
+    # Create output directory
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(exist_ok=True, parents=True)
+
     # Load config
     with open(args.config) as f:
         config = yaml.safe_load(f)
