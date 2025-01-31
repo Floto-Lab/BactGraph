@@ -37,6 +37,8 @@ dependencies = [
   "torch-scatter~=2.1.2",
   "torch-sparse~=0.6.18",
   "torch-spline-conv~=1.2.2",
+  # other dependencies
+  "typed-argument-parser>=1.8.1",
 ]
 optional-dependencies.dev = [
   "pre-commit",
