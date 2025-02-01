@@ -137,7 +137,8 @@ class BactGraphModel(pl.LightningModule):
         x_batch, edge_index_batch, y = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long))
         loss = F.mse_loss(preds, y.view(-1))
-        self.log("train_loss", loss, on_step=True, on_epoch=True)
+        print("Loss:", loss)
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -149,7 +150,7 @@ class BactGraphModel(pl.LightningModule):
         pearson = pearson_corrcoef(preds, y.view(-1))
         r2 = r2_score(preds, y.view(-1))
 
-        res = {"test_loss": loss, "test_pearson": pearson, "test_r2": r2}
+        res = {"val_loss": loss, "val_pearson": pearson, "val_r2": r2}
         self.log_dict(res, prog_bar=True, batch_size=self.config["batch_size"])
 
         return res
