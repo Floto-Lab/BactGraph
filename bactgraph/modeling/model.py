@@ -118,7 +118,7 @@ class BactGraphModel(pl.LightningModule):
         )
 
         # self.linear = nn.Linear(config["output_dim"], 1)
-        self.bias = torch.nn.Parameter(torch.zeros(config["n_unique_genes"]))
+        self.bias = torch.nn.Parameter(torch.zeros(config["n_genes"]))
         # self.dropout = nn.Dropout(config["dropout"])
 
         # Learning rate (default to 1e-3 if not specified)

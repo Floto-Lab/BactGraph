@@ -13,6 +13,7 @@ from bactgraph.modeling.trainer import create_trainer
 def run(args):
     """Run training and evaluation of the BactGraph model."""
     # get the data
+    config = args.as_dict()
     data_reader_output = preprocess_data_for_training(
         input_dir=args.input_dir,
         transform_norm_expression_fn=np.log10,
@@ -22,9 +23,10 @@ def run(args):
         num_workers=4,
         random_seed=args.random_state,
     )
+    config["n_genes"] = len(data_reader_output["gene2idx"])
 
     # read config from args
-    model = BactGraphModel(args.as_dict())
+    model = BactGraphModel(config)
     print("Nr of trainable parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     # get the trainer
