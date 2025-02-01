@@ -56,6 +56,7 @@ class BactGraphDataset(Dataset):
 
         # get triples
         self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)
+        self.triples = torch.randint(0, len(self.gene2idx), self.triples.shape)
 
         # normalise the expression data
         # revert previous log2 transformation (the data was provided like this)
