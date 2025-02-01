@@ -129,8 +129,8 @@ class BactGraphModel(pl.LightningModule):
         self.save_hyperparameters(logger=False)
 
         if torch.cuda.is_available():
-            self.gene_matrix = self.gene_matrix.cuda()
-            self.bias = self.bias.cuda()
+            self.gene_matrix.cuda()
+            self.bias.cuda()
 
     def forward(self, x_batch: torch.Tensor, edge_index_batch: torch.Tensor, gene_indices: torch.Tensor):
         """Expects a PyG data object with data.x (node features) and data.edge_index (graph connectivity)."""
