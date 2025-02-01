@@ -11,7 +11,7 @@ from bactgraph.modeling.dataset import BactGraphDataset
 
 BACTMAP_PROTEINS_FILE_NAME = "bactmap_proteins_prot_embeds.parquet"
 NORMALISED_EXPRESSION_FILE_NAME = "norm_dat_pao1.tsv"
-PERTURB_NETWORK_FILE_NAME = "bactmap_proteins_prot_embeds.parquet"
+PERTURB_NETWORK_FILE_NAME = "llcb_perturb_hits_adj_matrix.tsv"
 
 
 def preprocess_data_for_training(
