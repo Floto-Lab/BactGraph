@@ -127,7 +127,7 @@ class BactGraphModel(pl.LightningModule):
 
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor):
         """Expects a PyG data object with data.x (node features) and data.edge_index (graph connectivity)."""
-        logits = self.gat_module(x, edge_index).squeeze() + self.bias
+        logits = self.gat_module(x, edge_index).squeeze() + self.bias.repeat(self.config["batch_size"])
         return F.softplus(logits)
 
     def training_step(self, batch, batch_idx):
