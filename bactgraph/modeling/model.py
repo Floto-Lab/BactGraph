@@ -118,7 +118,10 @@ class BactGraphModel(pl.LightningModule):
         )
 
         # self.linear = nn.Linear(config["output_dim"], 1)
-        self.bias = torch.nn.Parameter(torch.zeros(config["n_genes"]))
+        self.bias = torch.nn.Parameter(torch.zeros(config["n_genes"])).unsqueeze(1)
+        self.dropout = nn.Dropout(config["dropout"])
+        self.gene_matrix = nn.Parameter(torch.empty(config["n_genes"], config["output_dim"]))
+        nn.init.xavier_normal_(self.gene_matrix)
         # self.dropout = nn.Dropout(config["dropout"])
 
         # Learning rate (default to 1e-3 if not specified)
@@ -131,8 +134,9 @@ class BactGraphModel(pl.LightningModule):
         # batch_size = x_batch.shape[0]
         # logits = self.gat_module(x, edge_index).squeeze()  # + self.bias.repeat(batch_size)
         last_hidden_state = self.gat_module(x, edge_index)
-        last_hidden_state = group_by_label(last_hidden_state, gene_indices.view(-1))
-        return F.softplus(last_hidden_state)
+        last_hidden_state = group_by_label(self.dropout(last_hidden_state), gene_indices.view(-1))
+        logits = torch.einsum("bnm,bm->bn", last_hidden_state, self.gene_matrix) + self.bias
+        return F.softplus(logits)
 
     def training_step(self, batch, batch_idx):
         """Training step."""

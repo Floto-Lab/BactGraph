@@ -62,8 +62,8 @@ class TrainArgumentParser(Tap):
     test: bool = False
     input_dim: int = 480
     hidden_dim: int = 480
-    output_dim: int = 1
-    num_layers: int = 3
+    output_dim: int = 480
+    num_layers: int = 2
     num_heads: int = 4
     dropout: float = 0.2
     lr: float = 0.001
