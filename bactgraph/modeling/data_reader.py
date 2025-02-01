@@ -42,7 +42,7 @@ def preprocess_data_for_training(
     # subset the genes of interest
     protein_embeddings = protein_embeddings[genes_of_interest]
     expression_df = expression_df[expression_df.index.isin(genes_of_interest)]
-    perturb_network = perturb_network[genes_of_interest]
+    perturb_network = perturb_network[[g for g in genes_of_interest if g in perturb_network.columns]]
     perturb_network = perturb_network[perturb_network.index.isin(genes_of_interest)]
 
     # subset to the strains with expression data
