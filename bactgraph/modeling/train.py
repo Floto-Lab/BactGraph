@@ -30,7 +30,7 @@ def run(args):
     print("Nr of trainable parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     # get the trainer
-    trainer = create_trainer(args)
+    trainer = create_trainer(config)
 
     # train the model
     trainer.fit(
