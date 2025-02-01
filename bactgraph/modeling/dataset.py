@@ -1,4 +1,3 @@
-import os
 from collections.abc import Callable
 
 import numpy as np
@@ -45,39 +44,17 @@ class BactGraphDataset(Dataset):
 
     def __init__(
         self,
-        input_dir: str,
+        protein_embeddings: pd.DataFrame,
+        expression_df: pd.DataFrame,
+        gene2idx: dict[str, int],
+        perturb_network: pd.DataFrame,
         transform_norm_expression_fn: Callable = np.log10,
     ):
-        # read the data
-        self.protein_embeddings = pd.read_parquet(os.path.join(input_dir, BACTMAP_PROTEINS_FILE_NAME))
-        self.expression_df = pd.read_csv(os.path.join(input_dir, NORMALISED_EXPRESSION_FILE_NAME), sep="\t").set_index(
-            "feature_id"
-        )
-        perturb_network = pd.read_csv(os.path.join(input_dir, PERTURB_NETWORK_FILE_NAME), sep="\t").set_index("gene_id")
-
-        # keep only genes which are in all files
-        prot_emb_genes = set(self.protein_embeddings.columns.tolist())
-        expression_genes = set(self.expression_df.index.tolist())
-        perturb_network_genes = set(perturb_network.index.tolist() + perturb_network.columns.tolist())
-
-        genes_of_interest = list(prot_emb_genes.intersection(expression_genes).intersection(perturb_network_genes))
-        print(f"Total nr of genes available: {len(genes_of_interest)}")
-
-        # subset the genes of interest
-        self.protein_embeddings = self.protein_embeddings[genes_of_interest]
-        self.expression_df = self.expression_df[self.expression_df.index.isin(genes_of_interest)]
-        perturb_network = perturb_network[genes_of_interest]
-        perturb_network = perturb_network[perturb_network.index.isin(genes_of_interest)]
-
-        # subset to the strains with expression data
-        strains_w_expression = self.expression_df.columns.tolist()
-        strains_w_prot_emb = self.protein_embeddings.index.tolist()
-        strains_of_interest = list(set(strains_w_expression).intersection(strains_w_prot_emb))
-        self.expression_df = self.expression_df[strains_of_interest]
-        self.protein_embeddings = self.protein_embeddings.loc[strains_of_interest]
+        self.protein_embeddings = protein_embeddings
+        self.expression_df = expression_df
+        self.gene2idx = gene2idx
 
         # get triples
-        self.gene2idx = {gene: idx for idx, gene in enumerate(self.protein_embeddings.columns)}
         self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)
 
         # normalise the expression data
@@ -99,4 +76,4 @@ class BactGraphDataset(Dataset):
         expr_values = torch.tensor(
             [self.expression_df.loc[gene, strain] for gene in self.protein_embeddings.columns], dtype=torch.float32
         )
-        return prot_emb, expr_values, self.triples
+        return prot_emb, self.triples[:2, :], expr_values

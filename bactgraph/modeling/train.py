@@ -5,41 +5,43 @@ import numpy as np
 from lightning import seed_everything
 from tap import Tap
 
+from bactgraph.modeling.data_reader import preprocess_data_for_training
+from bactgraph.modeling.model import BactGraphModel
+from bactgraph.modeling.trainer import create_trainer
+
 
 def run(args):
     """Run training and evaluation of the BactGraph model."""
     # get the data
-    # TODO: create data reader class
-    data_reader_output = preprocess_data_for_training(  # noqa
+    data_reader_output = preprocess_data_for_training(
         input_dir=args.input_dir,
         transform_norm_expression_fn=np.log10,
         train_size=args.train_size,
         test_size=args.test_size,
+        batch_size=args.batch_size,
+        num_workers=4,
+        random_seed=args.random_state,
     )
 
     # read config from args
-    # TODO: create config class
-    config = None
-    model = BactGraphModel(config)  # noqa
+    model = BactGraphModel(args.as_dict())
     print("Nr of trainable parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     # get the trainer
-    # TODO: create trainer class
-    trainer = get_trainer(args)  # noqa
+    trainer = create_trainer(args)
 
     # train the model
-    # TODO: load best model at the end
     trainer.fit(
         model,
-        train_dataloader=data_reader_output["train_dataloader"],
-        val_dataloader=data_reader_output["val_dataloader"],
+        data_reader_output["train_dataloader"],
+        data_reader_output["val_dataloader"],
     )
 
     # if test data is available, evaluate the model
     if not args.test:
         return
 
-    test_metrics = trainer.test(model, test_dataloader=data_reader_output["test_dataloader"])
+    test_metrics = trainer.test(model, data_reader_output["test_dataloader"], ckpt_path="best")
     with open(os.path.join(args.output_dir, "test_metrics.json"), "w") as f:
         json.dump(test_metrics, f)
 
@@ -56,14 +58,18 @@ class TrainArgumentParser(Tap):
     test_size: float = 0.2
     random_state: int = 42
     test: bool = False
-    n_gat_layers: int = 2
-    n_heads: int = 2
-    hidden_size: int = 480
+    input_dim: int = 480
+    hidden_dim: int = 480
+    num_layers: int = 3
+    num_heads: int = 4
     dropout: float = 0.2
     lr: float = 0.001
     weight_decay: float = 0.01
-    max_epochs: int = 20
+    max_epochs: int = 100
     batch_size: int = 32
+    monitor_metric: str = "val_r2"
+    early_stop_patience: int = 5
+    gradient_clip_val: float = 0.0
 
 
 def main(args):
