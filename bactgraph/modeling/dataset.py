@@ -68,7 +68,7 @@ class BactGraphDataset(Dataset):
     def __len__(self):
         return len(self.expression_df.columns)
 
-    def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         # get the expression data for the idx-th strain
         strain = self.strains[idx]
         # get protein embeddings
@@ -76,4 +76,5 @@ class BactGraphDataset(Dataset):
         expr_values = torch.tensor(
             [self.expression_df.loc[gene, strain] for gene in self.protein_embeddings.columns], dtype=torch.float32
         )
-        return prot_emb, self.triples[:2, :], expr_values
+        gene_idx = torch.arange(len(self.protein_embeddings.columns), dtype=torch.long)
+        return prot_emb, self.triples[:2, :], expr_values, gene_idx

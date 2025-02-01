@@ -6,7 +6,7 @@ from torch.optim import AdamW
 from torch_geometric.nn import GATv2Conv
 from torchmetrics.functional import pearson_corrcoef, r2_score
 
-from bactgraph.modeling.utils import batch_into_single_graph
+from bactgraph.modeling.utils import batch_into_single_graph, group_by_label
 
 
 class GATModel(nn.Module):
@@ -125,20 +125,24 @@ class BactGraphModel(pl.LightningModule):
         self.lr = config.get("lr", 1e-3)
         self.save_hyperparameters(logger=False)
 
-    def forward(self, x_batch: torch.Tensor, edge_index_batch: torch.Tensor):
+    def forward(self, x_batch: torch.Tensor, edge_index_batch: torch.Tensor, gene_indices: torch.Tensor):
         """Expects a PyG data object with data.x (node features) and data.edge_index (graph connectivity)."""
         x, edge_index, _ = batch_into_single_graph(x_batch, edge_index_batch.type(torch.long))
         # batch_size = x_batch.shape[0]
-        logits = self.gat_module(x, edge_index).squeeze()  # + self.bias.repeat(batch_size)
-        return F.softplus(logits)
+        # logits = self.gat_module(x, edge_index).squeeze()  # + self.bias.repeat(batch_size)
+        last_hidden_state = self.gat_module(x, edge_index)
+        last_hidden_state = group_by_label(last_hidden_state, gene_indices.view(-1))
+        return F.softplus(last_hidden_state)
 
     def training_step(self, batch, batch_idx):
         """Training step."""
-        x_batch, edge_index_batch, y = batch
-        preds = self.forward(x_batch, edge_index_batch.type(torch.long))
+        x_batch, edge_index_batch, y, gene_indices = batch
+        preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
-        preds = preds[y.view(-1) != -100.0]
+        y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
+        preds = preds.view(-1)
         y = y.view(-1)
+        preds = preds[y.view(-1) != -100.0]
         y = y[y != -100.0]
         loss = F.mse_loss(preds, y)
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
@@ -146,11 +150,13 @@ class BactGraphModel(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         """Validation step"""
-        x_batch, edge_index_batch, y = batch
-        preds = self.forward(x_batch, edge_index_batch.type(torch.long))
+        x_batch, edge_index_batch, y, gene_indices = batch
+        preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
-        preds = preds[y.view(-1) != -100.0]
+        y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
+        preds = preds.view(-1)
         y = y.view(-1)
+        preds = preds[y.view(-1) != -100.0]
         y = y[y != -100.0]
         loss = F.mse_loss(preds, y)
         pearson = pearson_corrcoef(preds, y)
@@ -163,11 +169,13 @@ class BactGraphModel(pl.LightningModule):
 
     def test_step(self, batch, batch_idx) -> dict:
         """Test step."""
-        x_batch, edge_index_batch, y = batch
-        preds = self.forward(x_batch, edge_index_batch.type(torch.long))
+        x_batch, edge_index_batch, y, gene_indices = batch
+        preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
-        preds = preds[y.view(-1) != -100.0]
+        y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
+        preds = preds.view(-1)
         y = y.view(-1)
+        preds = preds[y.view(-1) != -100.0]
         y = y[y != -100.0]
         loss = F.mse_loss(preds, y)
         pearson = pearson_corrcoef(preds, y)

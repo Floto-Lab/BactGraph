@@ -72,3 +72,26 @@ def batch_into_single_graph(x_batch: torch.Tensor, edge_index_batch: torch.Tenso
     batch_vector = torch.cat(batch_vector, dim=0)  # => shape [B*N]
 
     return merged_x, merged_edge_index, batch_vector
+
+
+def group_by_label(X: torch.Tensor, Y: torch.Tensor) -> torch.Tensor:
+    """
+    Group rows of X by the integer labels in Y.
+
+    X: [N, M]
+    Y: [N]    (contains integer labels)
+
+    Returns: grouped: [Z, W, M],
+        where Z = number of unique labels,
+              W = number of rows per label,
+              M = original feature dim.
+    """
+    unique_labels = torch.unique(Y)  # e.g. [0,1,2,3]
+    groups = []
+    for label in unique_labels:
+        # Mask out rows of X that correspond to this label
+        group = X[Y == label]  # shape [W, M]
+        groups.append(group)
+    # Stack groups along a new dimension 0 => [Z, W, M]
+    grouped = torch.stack(groups, dim=0)
+    return grouped
