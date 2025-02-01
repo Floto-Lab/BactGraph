@@ -137,7 +137,7 @@ class BactGraphModel(pl.LightningModule):
         x_batch, edge_index_batch, y = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long))
         loss = F.mse_loss(preds, y.view(-1))
-        print("Loss:", loss)
+        print("preds", preds, "y", y)
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss
 
