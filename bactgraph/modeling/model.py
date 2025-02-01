@@ -141,7 +141,6 @@ class BactGraphModel(pl.LightningModule):
         y = y.view(-1)
         y = y[y != -100.0]
         loss = F.mse_loss(preds, y)
-        print("preds", preds, "y", y)
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss
 
