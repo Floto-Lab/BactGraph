@@ -125,28 +125,25 @@ class BactGraphModel(pl.LightningModule):
         self.lr = config.get("lr", 1e-3)
         self.save_hyperparameters(logger=False)
 
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor):
+    def forward(self, x_batch: torch.Tensor, edge_index_batch: torch.Tensor):
         """Expects a PyG data object with data.x (node features) and data.edge_index (graph connectivity)."""
-        logits = self.gat_module(x, edge_index).squeeze() + self.bias.repeat(self.config["batch_size"])
+        x, edge_index, _ = batch_into_single_graph(x_batch, edge_index_batch.type(torch.long))
+        batch_size = x_batch.shape[0]
+        logits = self.gat_module(x, edge_index).squeeze() + self.bias.repeat(batch_size)
         return F.softplus(logits)
 
     def training_step(self, batch, batch_idx):
         """Training step."""
         x_batch, edge_index_batch, y = batch
-        x, edge_index, _ = batch_into_single_graph(x_batch, edge_index_batch.type(torch.long))
-        print(x.shape, edge_index.shape, y.shape)
-        preds = self.forward(x, edge_index)
-        # Squeeze if your output_dim=1 to match target shape
+        preds = self.forward(x_batch, edge_index_batch.type(torch.long))
         loss = F.mse_loss(preds, y.view(-1))
-        self.log("train_loss", loss, on_step=False, on_epoch=True)
+        self.log("train_loss", loss, on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         """Validation step"""
         x_batch, edge_index_batch, y = batch
-        x, edge_index, _ = batch_into_single_graph(x_batch, edge_index_batch.type(torch.long))
-        print(x.shape, edge_index.shape, y.shape)
-        preds = self.forward(x, edge_index)
+        preds = self.forward(x_batch, edge_index_batch.type(torch.long))
 
         loss = F.mse_loss(preds, y.view(-1))
         pearson = pearson_corrcoef(preds, y.view(-1))
@@ -160,8 +157,7 @@ class BactGraphModel(pl.LightningModule):
     def test_step(self, batch, batch_idx) -> dict:
         """Test step."""
         x_batch, edge_index_batch, y = batch
-        x, edge_index, _ = batch_into_single_graph(x_batch, edge_index_batch.type(torch.long))
-        preds = self.forward(x, edge_index)
+        preds = self.forward(x_batch, edge_index_batch.type(torch.long))
 
         loss = F.mse_loss(preds, y.view(-1))
         pearson = pearson_corrcoef(preds, y.view(-1))
