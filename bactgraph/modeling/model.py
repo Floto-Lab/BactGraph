@@ -136,7 +136,11 @@ class BactGraphModel(pl.LightningModule):
         """Training step."""
         x_batch, edge_index_batch, y = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long))
-        loss = F.mse_loss(preds, y.view(-1))
+
+        preds = preds[y.view(-1) != -100.0]
+        y = y.view(-1)
+        y = y[y != -100.0]
+        loss = F.mse_loss(preds, y)
         print("preds", preds, "y", y)
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss
@@ -146,9 +150,12 @@ class BactGraphModel(pl.LightningModule):
         x_batch, edge_index_batch, y = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long))
 
-        loss = F.mse_loss(preds, y.view(-1))
-        pearson = pearson_corrcoef(preds, y.view(-1))
-        r2 = r2_score(preds, y.view(-1))
+        preds = preds[y.view(-1) != -100.0]
+        y = y.view(-1)
+        y = y[y != -100.0]
+        loss = F.mse_loss(preds, y)
+        pearson = pearson_corrcoef(preds, y)
+        r2 = r2_score(preds, y)
 
         res = {"val_loss": loss, "val_pearson": pearson, "val_r2": r2}
         self.log_dict(res, prog_bar=True, batch_size=self.config["batch_size"])
@@ -160,9 +167,12 @@ class BactGraphModel(pl.LightningModule):
         x_batch, edge_index_batch, y = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long))
 
-        loss = F.mse_loss(preds, y.view(-1))
-        pearson = pearson_corrcoef(preds, y.view(-1))
-        r2 = r2_score(preds, y.view(-1))
+        preds = preds[y.view(-1) != -100.0]
+        y = y.view(-1)
+        y = y[y != -100.0]
+        loss = F.mse_loss(preds, y)
+        pearson = pearson_corrcoef(preds, y)
+        r2 = r2_score(preds, y)
 
         res = {"test_loss": loss, "test_pearson": pearson, "test_r2": r2}
         self.log_dict(res, prog_bar=True, batch_size=self.config["batch_size"])

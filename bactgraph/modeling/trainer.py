@@ -1,6 +1,7 @@
 from typing import Any
 
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 
@@ -36,7 +37,7 @@ def create_trainer(config: dict[str, Any]) -> pl.Trainer:
     # ------------------------
     trainer = pl.Trainer(
         max_epochs=config.get("max_epochs", 100),
-        accelerator="auto",
+        accelerator="cpu" if not torch.cuda.is_available() else "auto",
         devices="auto",
         enable_checkpointing=True,
         enable_model_summary=True,

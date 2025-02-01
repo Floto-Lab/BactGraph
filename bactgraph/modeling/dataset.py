@@ -61,7 +61,7 @@ class BactGraphDataset(Dataset):
         # revert previous log2 transformation (the data was provided like this)
         self.expression_df = self.expression_df.apply(np.exp2)
         # transform the data with the provided function
-        self.expression_df = self.expression_df.apply(transform_norm_expression_fn)
+        self.expression_df = self.expression_df.apply(transform_norm_expression_fn).fillna(-100.0)
 
         self.strains = self.expression_df.columns.tolist()
 

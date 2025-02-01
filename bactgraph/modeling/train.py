@@ -54,8 +54,8 @@ class TrainArgumentParser(Tap):
     def __init__(self):
         super().__init__(underscores_to_dashes=True)
 
-    input_dir: str
-    output_dir: str
+    input_dir: str = "/Users/maciejwiatrak/Downloads/data/"
+    output_dir: str = "/tmp/gnn-output/"
     train_size: float = 0.7
     test_size: float = 0.2
     random_state: int = 42
