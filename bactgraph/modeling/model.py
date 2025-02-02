@@ -119,8 +119,10 @@ class BactGraphModel(pl.LightningModule):
 
         # self.linear = nn.Linear(config["output_dim"], 1)
         self.bias = torch.nn.Parameter(torch.zeros(config["n_genes"]), requires_grad=True).unsqueeze(1)
-        # self.dropout = nn.Dropout(config["dropout"])
-        # self.gene_matrix = nn.Parameter(nn.init.xavier_normal_(torch.empty(config["n_genes"], config["output_dim"])))
+        self.dropout = nn.Dropout(config["dropout"])
+        self.gene_matrix = nn.Parameter(
+            nn.init.xavier_normal_(torch.empty(config["n_genes"], config["output_dim"])), requires_grad=True
+        )
 
         # self.gene_layers = nn.ModuleList([nn.Linear(config["output_dim"], 1) for _ in range(config["n_genes"])])
 
@@ -134,15 +136,15 @@ class BactGraphModel(pl.LightningModule):
         # batch_size = x_batch.shape[0]
         # logits = self.gat_module(x, edge_index).squeeze()  # + self.bias.repeat(batch_size)
         last_hidden_state = self.gat_module(x, edge_index)
-        last_hidden_state = group_by_label(last_hidden_state, gene_indices.view(-1))
-        # logits = torch.einsum(
-        #     "bnm,bm->bn", last_hidden_state, self.gene_matrix.to(last_hidden_state.device)
-        # ) + self.bias.to(last_hidden_state.device)
+        last_hidden_state = group_by_label(self.dropout(last_hidden_state), gene_indices.view(-1))
+        logits = torch.einsum(
+            "bnm,bm->bn", last_hidden_state, self.gene_matrix.to(last_hidden_state.device)
+        ) + self.bias.to(last_hidden_state.device)
         # logits = []
         # for idx, gene_lhs in enumerate(last_hidden_state):
         #     logits.append(self.gene_layers[idx](gene_lhs))
         # logits = torch.stack(logits, dim=1).squeeze()
-        logits = last_hidden_state.squeeze() + self.bias.to(last_hidden_state.device)
+        # logits = last_hidden_state.squeeze() + self.bias.to(last_hidden_state.device)
         return F.softplus(logits)
 
     def training_step(self, batch, batch_idx):
