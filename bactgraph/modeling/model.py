@@ -118,11 +118,11 @@ class BactGraphModel(pl.LightningModule):
         )
 
         # self.linear = nn.Linear(config["output_dim"], 1)
-        # self.bias = torch.nn.Parameter(torch.zeros(config["n_genes"])).unsqueeze(1)
-        self.dropout = nn.Dropout(config["dropout"])
+        self.bias = torch.nn.Parameter(torch.zeros(config["n_genes"])).unsqueeze(1)
+        # self.dropout = nn.Dropout(config["dropout"])
         # self.gene_matrix = nn.Parameter(nn.init.xavier_normal_(torch.empty(config["n_genes"], config["output_dim"])))
 
-        self.gene_layers = nn.ModuleList([nn.Linear(config["output_dim"], 1) for _ in range(config["n_genes"])])
+        # self.gene_layers = nn.ModuleList([nn.Linear(config["output_dim"], 1) for _ in range(config["n_genes"])])
 
         # Learning rate (default to 1e-3 if not specified)
         self.lr = config.get("lr", 1e-3)
@@ -138,10 +138,11 @@ class BactGraphModel(pl.LightningModule):
         # logits = torch.einsum(
         #     "bnm,bm->bn", last_hidden_state, self.gene_matrix.to(last_hidden_state.device)
         # ) + self.bias.to(last_hidden_state.device)
-        logits = []
-        for idx, gene_lhs in enumerate(last_hidden_state):
-            logits.append(self.gene_layers[idx](gene_lhs))
-        logits = torch.stack(logits, dim=1).squeeze()
+        # logits = []
+        # for idx, gene_lhs in enumerate(last_hidden_state):
+        #     logits.append(self.gene_layers[idx](gene_lhs))
+        # logits = torch.stack(logits, dim=1).squeeze()
+        logits = last_hidden_state.squeeze() + self.bias
         return F.softplus(logits)
 
     def training_step(self, batch, batch_idx):
