@@ -43,6 +43,10 @@ def run(args):
     if not args.test:
         return
 
+    val_metrics = trainer.test(model, data_reader_output["val_dataloader"], ckpt_path="best")
+    with open(os.path.join(args.output_dir, "val_metrics.json"), "w") as f:
+        json.dump(val_metrics, f)
+
     test_metrics = trainer.test(model, data_reader_output["test_dataloader"], ckpt_path="best")
     with open(os.path.join(args.output_dir, "test_metrics.json"), "w") as f:
         json.dump(test_metrics, f)
