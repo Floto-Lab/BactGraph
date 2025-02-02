@@ -200,7 +200,7 @@ class BactGraphModel(pl.LightningModule):
         )
 
         # If user doesn't specify, default T_max to 10
-        T_max = self.config.get("max_epochs", 20)
+        T_max = self.config.get("t_max", 10)
         scheduler = CosineAnnealingLR(optimizer, T_max=T_max, eta_min=0.0)
 
         return {
