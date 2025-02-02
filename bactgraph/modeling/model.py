@@ -136,7 +136,7 @@ class BactGraphModel(pl.LightningModule):
         logits = torch.einsum(
             "bnm,bm->bn", last_hidden_state, self.gene_matrix.to(last_hidden_state.device)
         ) + self.bias.to(last_hidden_state.device)
-        return F.softplus(logits)
+        return logits  # F.softplus(logits)
 
     def training_step(self, batch, batch_idx):
         """Training step."""
