@@ -73,7 +73,7 @@ class TrainArgumentParser(Tap):
     monitor_metric: str = "val_r2"
     early_stop_patience: int = 15
     gradient_clip_val: float = 0.0
-    t_max: int = 10
+    # t_max: int = 10
 
 
 def main(args):
