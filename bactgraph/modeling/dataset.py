@@ -56,15 +56,15 @@ class BactGraphDataset(Dataset):
         self.gene2idx = gene2idx
 
         # get triples
-        # self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)
+        self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)
         # # randomize the network experiment
         # torch.manual_seed(random_seed)
         # self.triples = torch.randint(0, len(self.gene2idx), self.triples.shape)
         # fully connected network
-        self.triples = torch.stack(
-            [torch.arange(len(self.gene2idx)), torch.arange(len(self.gene2idx)), torch.ones(len(self.gene2idx))],
-            dim=0,
-        )
+        # self.triples = torch.stack(
+        #     [torch.arange(len(self.gene2idx)), torch.arange(len(self.gene2idx)), torch.ones(len(self.gene2idx))],
+        #     dim=0,
+        # )
 
         # normalise the expression data
         # revert previous log2 transformation (the data was provided like this)

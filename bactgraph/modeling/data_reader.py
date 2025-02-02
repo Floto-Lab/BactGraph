@@ -37,6 +37,7 @@ def preprocess_data_for_training(
     perturb_network_genes = set(perturb_network.index.tolist() + perturb_network.columns.tolist())
 
     genes_of_interest = list(prot_emb_genes.intersection(expression_genes).intersection(perturb_network_genes))
+    genes_of_interest = genes_of_interest[: len(genes_of_interest) // 2]
     print(f"Total nr of genes available: {len(genes_of_interest)}")
 
     # subset the genes of interest
