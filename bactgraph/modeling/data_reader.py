@@ -70,6 +70,7 @@ def preprocess_data_for_training(
         gene2idx=gene2idx,
         perturb_network=perturb_network,
         transform_norm_expression_fn=transform_norm_expression_fn,
+        random_seed=random_seed,
     )
     val_dataset = BactGraphDataset(
         protein_embeddings=protein_embeddings.loc[val_strains],
@@ -77,6 +78,7 @@ def preprocess_data_for_training(
         gene2idx=gene2idx,
         perturb_network=perturb_network,
         transform_norm_expression_fn=transform_norm_expression_fn,
+        random_seed=random_seed,
     )
     test_dataset = BactGraphDataset(
         protein_embeddings=protein_embeddings.loc[test_strains],
@@ -84,6 +86,7 @@ def preprocess_data_for_training(
         gene2idx=gene2idx,
         perturb_network=perturb_network,
         transform_norm_expression_fn=transform_norm_expression_fn,
+        random_seed=random_seed,
     )
 
     # create dataloaders

@@ -49,6 +49,7 @@ class BactGraphDataset(Dataset):
         gene2idx: dict[str, int],
         perturb_network: pd.DataFrame,
         transform_norm_expression_fn: Callable = np.log10,
+        random_seed: int = 42,
     ):
         self.protein_embeddings = protein_embeddings
         self.expression_df = expression_df
@@ -56,7 +57,9 @@ class BactGraphDataset(Dataset):
 
         # get triples
         self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)
-        # self.triples = torch.randint(0, len(self.gene2idx), self.triples.shape)
+        # randomize the network experiment
+        torch.manual_seed(random_seed)
+        self.triples = torch.randint(0, len(self.gene2idx), self.triples.shape)
 
         # normalise the expression data
         # revert previous log2 transformation (the data was provided like this)
