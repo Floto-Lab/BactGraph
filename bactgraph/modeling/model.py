@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch_geometric.nn import GATv2Conv
 from torchmetrics.functional import pearson_corrcoef, r2_score
 
@@ -198,16 +197,17 @@ class BactGraphModel(pl.LightningModule):
             lr=self.lr,
             weight_decay=self.config["weight_decay"],
         )
+        return optimizer
 
-        # If user doesn't specify, default T_max to 10
-        T_max = self.config.get("t_max", 10)
-        scheduler = CosineAnnealingLR(optimizer, T_max=T_max, eta_min=0.0)
-
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": scheduler,
-                "interval": "epoch",  # step every epoch
-                "frequency": 1,
-            },
-        }
+        # # If user doesn't specify, default T_max to 10
+        # T_max = self.config.get("t_max", 10)
+        # scheduler = CosineAnnealingLR(optimizer, T_max=T_max, eta_min=0.0)
+        #
+        # return {
+        #     "optimizer": optimizer,
+        #     "lr_scheduler": {
+        #         "scheduler": scheduler,
+        #         "interval": "epoch",  # step every epoch
+        #         "frequency": 1,
+        #     },
+        # }
