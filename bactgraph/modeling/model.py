@@ -134,7 +134,7 @@ class BactGraphModel(pl.LightningModule):
         # batch_size = x_batch.shape[0]
         # logits = self.gat_module(x, edge_index).squeeze()  # + self.bias.repeat(batch_size)
         last_hidden_state = self.gat_module(x, edge_index)
-        last_hidden_state = group_by_label(self.dropout(last_hidden_state), gene_indices.view(-1))
+        last_hidden_state = group_by_label(last_hidden_state, gene_indices.view(-1))
         # logits = torch.einsum(
         #     "bnm,bm->bn", last_hidden_state, self.gene_matrix.to(last_hidden_state.device)
         # ) + self.bias.to(last_hidden_state.device)
