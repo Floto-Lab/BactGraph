@@ -57,6 +57,8 @@ class BactGraphDataset(Dataset):
 
         # get triples
         self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)
+        # reverse the direction
+        self.triples = self.triples[:2, :].flip(0)
         # randomize the network experiment
         # print("Randomizing the network experiment by randomly sampling edges.")
         # torch.manual_seed(random_seed)
@@ -87,4 +89,4 @@ class BactGraphDataset(Dataset):
             [self.expression_df.loc[gene, strain] for gene in self.protein_embeddings.columns], dtype=torch.float32
         )
         gene_idx = torch.arange(len(self.protein_embeddings.columns), dtype=torch.long)
-        return prot_emb, self.triples[:2, :], expr_values, gene_idx
+        return prot_emb, self.triples, expr_values, gene_idx
