@@ -56,9 +56,9 @@ class BactGraphDataset(Dataset):
         self.gene2idx = gene2idx
 
         # get triples
-        self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)
+        self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)[:2, :]
         # reverse the direction
-        self.triples = self.triples[:2, :].flip(0)
+        # self.triples = self.triples[:2, :].flip(0)
         # randomize the network experiment
         # print("Randomizing the network experiment by randomly sampling edges.")
         # torch.manual_seed(random_seed)

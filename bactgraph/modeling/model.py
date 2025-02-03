@@ -6,7 +6,7 @@ from torch.optim import AdamW
 from torch_geometric.nn import GATv2Conv
 from torchmetrics.functional import pearson_corrcoef, r2_score
 
-from bactgraph.modeling.utils import batch_into_single_graph, group_by_label
+from bactgraph.modeling.utils import batch_into_single_graph
 
 
 class GATModel(nn.Module):
@@ -117,11 +117,11 @@ class BactGraphModel(pl.LightningModule):
             num_heads=config["num_heads"],
         )
 
-        self.bias = torch.nn.Parameter(torch.zeros(config["n_genes"]), requires_grad=True).unsqueeze(1)
-        self.dropout = nn.Dropout(config["dropout"])
-        self.gene_matrix = nn.Parameter(
-            nn.init.xavier_normal_(torch.empty(config["n_genes"], config["output_dim"])), requires_grad=True
-        )
+        self.bias = torch.nn.Parameter(torch.zeros(config["n_genes"]), requires_grad=True)  # .unsqueeze(1)
+        # self.dropout = nn.Dropout(config["dropout"])
+        # self.gene_matrix = nn.Parameter(
+        #     nn.init.xavier_normal_(torch.empty(config["n_genes"], config["output_dim"])), requires_grad=True
+        # )
 
         # self.gene_layers = nn.ModuleList([nn.Linear(config["output_dim"], 1) for _ in range(config["n_genes"])])
 
@@ -132,13 +132,13 @@ class BactGraphModel(pl.LightningModule):
     def forward(self, x_batch: torch.Tensor, edge_index_batch: torch.Tensor, gene_indices: torch.Tensor):
         """Expects a PyG data object with data.x (node features) and data.edge_index (graph connectivity)."""
         x, edge_index, _ = batch_into_single_graph(x_batch, edge_index_batch.type(torch.long))
-        # batch_size = x_batch.shape[0]
-        # logits = self.gat_module(x, edge_index).squeeze() + self.bias.repeat(batch_size)
-        last_hidden_state = self.gat_module(x, edge_index)
-        last_hidden_state = group_by_label(self.dropout(last_hidden_state), gene_indices.view(-1))
-        logits = torch.einsum(
-            "bnm,bm->bn", last_hidden_state, self.gene_matrix.to(last_hidden_state.device)
-        ) + self.bias.to(last_hidden_state.device)
+        batch_size = x_batch.shape[0]
+        logits = self.gat_module(x, edge_index).squeeze() + self.bias.repeat(batch_size)
+        # last_hidden_state = self.gat_module(x, edge_index)
+        # last_hidden_state = group_by_label(self.dropout(last_hidden_state), gene_indices.view(-1))
+        # logits = torch.einsum(
+        #     "bnm,bm->bn", last_hidden_state, self.gene_matrix.to(last_hidden_state.device)
+        # ) + self.bias.to(last_hidden_state.device)
         # logits = []
         # for idx, gene_lhs in enumerate(last_hidden_state):
         #     logits.append(self.gene_layers[idx](gene_lhs))
@@ -151,7 +151,7 @@ class BactGraphModel(pl.LightningModule):
         x_batch, edge_index_batch, y, gene_indices = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
-        y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
+        # y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
         preds = preds.view(-1)
         y = y.view(-1)
         preds = preds[y.view(-1) != -100.0]
@@ -165,7 +165,7 @@ class BactGraphModel(pl.LightningModule):
         x_batch, edge_index_batch, y, gene_indices = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
-        y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
+        # y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
         preds = preds.view(-1)
         y = y.view(-1)
         preds = preds[y.view(-1) != -100.0]
@@ -184,7 +184,7 @@ class BactGraphModel(pl.LightningModule):
         x_batch, edge_index_batch, y, gene_indices = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
-        y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
+        # y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
         preds = preds.view(-1)
         y = y.view(-1)
         preds = preds[y.view(-1) != -100.0]
@@ -206,16 +206,3 @@ class BactGraphModel(pl.LightningModule):
             weight_decay=self.config["weight_decay"],
         )
         return optimizer
-
-        # # If user doesn't specify, default T_max to 10
-        # T_max = self.config.get("t_max", 10)
-        # scheduler = CosineAnnealingLR(optimizer, T_max=T_max, eta_min=0.0)
-        #
-        # return {
-        #     "optimizer": optimizer,
-        #     "lr_scheduler": {
-        #         "scheduler": scheduler,
-        #         "interval": "epoch",  # step every epoch
-        #         "frequency": 1,
-        #     },
-        # }
