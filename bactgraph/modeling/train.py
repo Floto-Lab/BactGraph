@@ -66,7 +66,7 @@ class TrainArgumentParser(Tap):
     test: bool = False
     input_dim: int = 480
     hidden_dim: int = 480
-    output_dim: int = 1
+    output_dim: int = 480
     num_layers: int = 2
     num_heads: int = 4
     dropout: float = 0.2
@@ -75,7 +75,7 @@ class TrainArgumentParser(Tap):
     max_epochs: int = 100
     batch_size: int = 32
     monitor_metric: str = "val_r2"
-    early_stop_patience: int = 15
+    early_stop_patience: int = 10
     gradient_clip_val: float = 0.0
     # t_max: int = 10
 
