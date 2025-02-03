@@ -23,13 +23,22 @@ classifiers = [
 ]
 dependencies = [
   "anndata",
+  "lightning~=2.5.0",
   "numpy",
   "pandas",
   "pyarrow",
   "pyyaml",
   "scikit-learn",
   "session-info",
-  "torch",
+  "torch~=2.2.2",
+  # pytorch geometric dependencies
+  "torch-cluster~=1.6.3",
+  "torch-geometric~=2.6.1",
+  "torch-scatter~=2.1.2",
+  "torch-sparse~=0.6.18",
+  "torch-spline-conv~=1.2.2",
+  # other dependencies
+  "typed-argument-parser>=1.8.1",
 ]
 optional-dependencies.dev = [
   "pre-commit",
