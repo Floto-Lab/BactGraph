@@ -64,7 +64,7 @@ def main(
 
     with torch.no_grad():
         prot_representations = []
-        for batch in tqdm(batches, mininterval=300):
+        for batch in tqdm(batches, mininterval=50):
             batch = tokenizer(batch, padding="longest", truncation=True, return_tensors="pt", max_length=max_aa_seq_len)
             input_ids = batch["input_ids"].to(device)
             att_mask = batch["attention_mask"].to(device)
@@ -82,6 +82,8 @@ def main(
                 1
             ).unsqueeze(1)
             prot_representations += list(avg_prot_representations.cpu().numpy())
+            torch.cuda.empty_cache()
+
     prot_seqs_df = prot_seqs_df.drop(columns=["Protein Sequence"])
     prot_seqs_df["protein_embedding"] = prot_representations
     # delete to save memory and it's not necessary anymore
