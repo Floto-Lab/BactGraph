@@ -32,6 +32,17 @@ class GATModel(nn.Module):
         # Build the GAT layers
         self.convs = nn.ModuleList()
 
+        if num_layers == 1:
+            self.convs.append(
+                GATv2Conv(
+                    in_channels=input_dim,
+                    out_channels=output_dim,
+                    heads=1,
+                    concat=False,  # don't concat the heads for the output
+                )
+            )
+            return
+
         # 1) First GAT layer: input_dim -> hidden_dim
         self.convs.append(
             GATv2Conv(
