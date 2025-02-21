@@ -50,6 +50,7 @@ class BactGraphDataset(Dataset):
         perturb_network: pd.DataFrame,
         transform_norm_expression_fn: Callable = np.log10,
         random_seed: int = 42,
+        randomize_network: bool = False,
     ):
         self.protein_embeddings = protein_embeddings
         self.expression_df = expression_df
@@ -59,10 +60,13 @@ class BactGraphDataset(Dataset):
         self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)[:2, :]
         # reverse the direction
         # self.triples = self.triples[:2, :].flip(0)
-        # randomize the network experiment
-        # print("Randomizing the network experiment by randomly sampling edges.")
-        # torch.manual_seed(random_seed)
-        # self.triples = torch.randint(0, len(self.gene2idx), self.triples.shape)
+
+        if randomize_network:
+            # randomize the network experiment
+            print("Randomizing the network experiment by randomly sampling edges.")
+            torch.manual_seed(random_seed)
+            self.triples = torch.randint(0, len(self.gene2idx), self.triples.shape)
+
         # fully connected network
         # self.triples = torch.stack(
         #     [torch.arange(len(self.gene2idx)), torch.arange(len(self.gene2idx)), torch.ones(len(self.gene2idx))],

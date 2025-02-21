@@ -22,6 +22,7 @@ def run(args):
         batch_size=args.batch_size,
         num_workers=4,
         random_seed=args.random_state,
+        randomize_network=args.randomize_network,
     )
     config["n_genes"] = len(data_reader_output["gene2idx"])
 
@@ -77,6 +78,7 @@ class TrainArgumentParser(Tap):
     monitor_metric: str = "val_r2"
     early_stop_patience: int = 10
     gradient_clip_val: float = 0.0
+    randomize_network: bool = False
     # t_max: int = 10
 
 

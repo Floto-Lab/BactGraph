@@ -22,6 +22,7 @@ def preprocess_data_for_training(
     batch_size: int = 32,
     num_workers: int = 4,
     random_seed: int = 42,
+    randomize_network: bool = False,
 ) -> dict[str, Any]:
     """Preprocess the data for training the BactGraph model."""
     # read the data
@@ -71,6 +72,7 @@ def preprocess_data_for_training(
         perturb_network=perturb_network,
         transform_norm_expression_fn=transform_norm_expression_fn,
         random_seed=random_seed,
+        randomize_network=randomize_network,
     )
     val_dataset = BactGraphDataset(
         protein_embeddings=protein_embeddings.loc[val_strains],
@@ -79,6 +81,7 @@ def preprocess_data_for_training(
         perturb_network=perturb_network,
         transform_norm_expression_fn=transform_norm_expression_fn,
         random_seed=random_seed,
+        randomize_network=randomize_network,
     )
     test_dataset = BactGraphDataset(
         protein_embeddings=protein_embeddings.loc[test_strains],
@@ -87,6 +90,7 @@ def preprocess_data_for_training(
         perturb_network=perturb_network,
         transform_norm_expression_fn=transform_norm_expression_fn,
         random_seed=random_seed,
+        randomize_network=randomize_network,
     )
 
     # create dataloaders
