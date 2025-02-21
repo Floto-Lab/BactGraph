@@ -128,7 +128,7 @@ class BactGraphModel(pl.LightningModule):
             num_heads=config["num_heads"],
         )
 
-        # self.bias = torch.nn.Parameter(torch.zeros(config["n_genes"]), requires_grad=True)  # .unsqueeze(1)
+        self.bias = torch.nn.Parameter(torch.zeros(config["n_genes"]), requires_grad=True)  # .unsqueeze(1)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(config["dropout"])
         # self.gene_matrix = nn.Parameter(
@@ -147,14 +147,14 @@ class BactGraphModel(pl.LightningModule):
         # batch_size = x_batch.shape[0]
         # logits = self.gat_module(x, edge_index).squeeze() + self.bias.repeat(batch_size)
         last_hidden_state = self.gat_module(x, edge_index)
-        last_hidden_state = group_by_label(self.dropout(self.relu(last_hidden_state)), gene_indices.view(-1))
-        # logits = torch.einsum(
-        #     "bnm,bm->bn", last_hidden_state, self.gene_matrix.to(last_hidden_state.device)
-        # ) + self.bias.to(last_hidden_state.device)
-        logits = []
-        for idx, gene_lhs in enumerate(last_hidden_state):
-            logits.append(self.gene_layers[idx](gene_lhs))
-        logits = torch.stack(logits, dim=1).squeeze()
+        last_hidden_state = group_by_label(self.dropout(last_hidden_state), gene_indices.view(-1))
+        logits = torch.einsum(
+            "bnm,bm->bn", last_hidden_state, self.gene_matrix.to(last_hidden_state.device)
+        ) + self.bias.to(last_hidden_state.device)
+        # logits = []
+        # for idx, gene_lhs in enumerate(last_hidden_state):
+        #     logits.append(self.gene_layers[idx](gene_lhs))
+        # logits = torch.stack(logits, dim=1).squeeze()
         # logits = last_hidden_state.squeeze() + self.bias.to(last_hidden_state.device)
         return F.softplus(logits)
 
