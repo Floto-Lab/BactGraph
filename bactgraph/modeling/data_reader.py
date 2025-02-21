@@ -100,7 +100,7 @@ def preprocess_data_for_training(
     val_dataloader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=num_workers
     )
-    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False, pin_memory=True, num_workers=num_workers)
+    test_dataloader = DataLoader(test_dataset, shuffle=False, pin_memory=True, num_workers=num_workers)
 
     return dict(  # noqa
         train_dataloader=train_dataloader,
