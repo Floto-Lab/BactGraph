@@ -135,7 +135,6 @@ class BactGraphModel(pl.LightningModule):
         # )
 
         self.gene_layers = nn.ModuleList([nn.Linear(config["output_dim"], 1) for _ in range(config["n_genes"])])
-        print("Nr of gene layers:", len(self.gene_layers))
 
         # Learning rate (default to 1e-3 if not specified)
         self.lr = config.get("lr", 1e-3)
@@ -152,7 +151,6 @@ class BactGraphModel(pl.LightningModule):
         #     "bnm,bm->bn", last_hidden_state, self.gene_matrix.to(last_hidden_state.device)
         # ) + self.bias.to(last_hidden_state.device)
         logits = []
-        print("last hidden state shape:", last_hidden_state.shape)
         for idx, gene_lhs in enumerate(last_hidden_state):
             logits.append(self.gene_layers[idx](gene_lhs))
         logits = torch.stack(logits, dim=1).squeeze()
