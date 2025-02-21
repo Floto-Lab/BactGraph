@@ -129,7 +129,7 @@ class BactGraphModel(pl.LightningModule):
         )
 
         # self.bias = torch.nn.Parameter(torch.zeros(config["n_genes"]), requires_grad=True)  # .unsqueeze(1)
-        # self.dropout = nn.Dropout(config["dropout"])
+        self.dropout = nn.Dropout(config["dropout"])
         # self.gene_matrix = nn.Parameter(
         #     nn.init.xavier_normal_(torch.empty(config["n_genes"], config["output_dim"])), requires_grad=True
         # )
