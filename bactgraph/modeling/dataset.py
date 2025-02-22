@@ -48,7 +48,7 @@ class BactGraphDataset(Dataset):
         expression_df: pd.DataFrame,
         gene2idx: dict[str, int],
         perturb_network: pd.DataFrame,
-        transform_norm_expression_fn: Callable = np.log10,
+        transform_norm_expression_fn: Callable = np.log,
         random_seed: int = 42,
         randomize_network: bool = False,
     ):
