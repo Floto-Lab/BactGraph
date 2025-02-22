@@ -6,7 +6,7 @@ from torch.optim import AdamW
 from torch_geometric.nn import GATv2Conv
 from torchmetrics.functional import pearson_corrcoef, r2_score
 
-from bactgraph.modeling.utils import batch_into_single_graph, group_by_label
+from bactgraph.modeling.utils import batch_into_single_graph
 
 
 class GATModel(nn.Module):
@@ -196,7 +196,7 @@ class BactGraphModel(pl.LightningModule):
         x_batch, edge_index_batch, y, gene_indices = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
-        y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
+        # y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
         preds = preds.view(-1)
         y = y.view(-1)
         preds = preds[y.view(-1) != -100.0]
