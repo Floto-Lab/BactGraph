@@ -39,6 +39,7 @@ class GATModel(nn.Module):
                     out_channels=output_dim,
                     heads=1,
                     concat=False,  # don't concat the heads for the output
+                    add_self_loops=False,
                 )
             )
             return
