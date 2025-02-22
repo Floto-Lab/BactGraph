@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import AdamW
-from torch_geometric.nn import GATv2Conv
+from torch_geometric.nn import GATv2Conv, GCNConv
 from torchmetrics.functional import pearson_corrcoef, r2_score
 
 from bactgraph.modeling.utils import batch_into_single_graph
@@ -34,11 +34,11 @@ class GATModel(nn.Module):
 
         if num_layers == 1:
             self.convs.append(
-                GATv2Conv(
+                GCNConv(
                     in_channels=input_dim,
                     out_channels=output_dim,
-                    heads=1,
-                    concat=False,  # don't concat the heads for the output
+                    # heads=1,
+                    # concat=False,  # don't concat the heads for the output
                     add_self_loops=False,
                 )
             )
