@@ -145,6 +145,7 @@ class BactGraphModel(pl.LightningModule):
     def forward(self, x_batch: torch.Tensor, edge_index_batch: torch.Tensor, gene_indices: torch.Tensor):
         """Expects a PyG data object with data.x (node features) and data.edge_index (graph connectivity)."""
         x, edge_index, _ = batch_into_single_graph(x_batch, edge_index_batch.type(torch.long))
+        print("x shape:", x.shape)
         batch_size = x_batch.shape[0]
         logits = self.gat_module(x, edge_index).squeeze() + self.bias.repeat(batch_size)
         # last_hidden_state = self.gat_module(x, edge_index)
