@@ -16,7 +16,7 @@ def run(args):
     config = args.as_dict()
     data_reader_output = preprocess_data_for_training(
         input_dir=args.input_dir,
-        transform_norm_expression_fn=np.log10,
+        transform_norm_expression_fn=np.log,
         train_size=args.train_size,
         test_size=args.test_size,
         batch_size=args.batch_size,
