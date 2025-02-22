@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-BACTMAP_PROTEINS_FILE_NAME = "bactmap_proteins_prot_embeds.parquet"
+BACTMAP_PROTEINS_FILE_NAME = "bactmap_proteins_prot_embeds_pca.parquet"
 NORMALISED_EXPRESSION_FILE_NAME = "norm_dat_pao1.tsv"
 PERTURB_NETWORK_FILE_NAME = "bactmap_proteins_prot_embeds.parquet"
 
