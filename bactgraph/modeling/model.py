@@ -195,8 +195,8 @@ class BactGraphModel(pl.LightningModule):
         for idx in range(y.shape[0]):
             y_gene = y[idx, :]
             preds_gene = preds[idx, :]
-            y_gene = y_gene[y_gene != -100.0]
             preds_gene = preds_gene[y_gene != -100.0]
+            y_gene = y_gene[y_gene != -100.0]
             pearson = pearson_corrcoef(preds_gene, y_gene)
             r2 = r2_score(preds_gene, y_gene)
             pearson_arr.append(pearson)
@@ -229,8 +229,8 @@ class BactGraphModel(pl.LightningModule):
         for idx in range(y.shape[0]):
             y_gene = y[idx, :]
             preds_gene = preds[idx, :]
-            y_gene = y_gene[y_gene != -100.0]
             preds_gene = preds_gene[y_gene != -100.0]
+            y_gene = y_gene[y_gene != -100.0]
             pearson = pearson_corrcoef(preds_gene, y_gene)
             r2 = r2_score(preds_gene, y_gene)
             pearson_arr.append(pearson)
