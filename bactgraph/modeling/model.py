@@ -179,13 +179,15 @@ class BactGraphModel(pl.LightningModule):
         preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
         # y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
-        preds = preds.view(-1)
-        y = y.view(-1)
-        preds = preds[y.view(-1) != -100.0]
-        y = y[y != -100.0]
-        loss = F.mse_loss(preds, y)
-        pearson = pearson_corrcoef(preds, y)
-        r2 = r2_score(preds, y)
+        preds_flat = preds.view(-1)
+        y_flat = y.view(-1)
+        preds_flat = preds[y.view(-1) != -100.0]
+        y_flat = y[y != -100.0]
+        loss = F.mse_loss(preds_flat, y_flat)
+
+        print(preds_flat.shape, y_flat.shape)
+        pearson = pearson_corrcoef(preds_flat, y_flat)
+        r2 = r2_score(preds_flat, y_flat)
 
         res = {"val_loss": loss, "val_pearson": pearson, "val_r2": r2}
         self.log_dict(res, prog_bar=True, batch_size=self.config["batch_size"])
