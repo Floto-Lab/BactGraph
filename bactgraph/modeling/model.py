@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import AdamW
-from torch_geometric.nn import GATv2Conv, GCNConv
+from torch_geometric.nn import GCNConv
 from torchmetrics.functional import pearson_corrcoef, r2_score
 
 from bactgraph.modeling.utils import batch_into_single_graph
@@ -46,33 +46,36 @@ class GATModel(nn.Module):
 
         # 1) First GAT layer: input_dim -> hidden_dim
         self.convs.append(
-            GATv2Conv(
+            GCNConv(
                 in_channels=input_dim,
                 out_channels=hidden_dim,
-                heads=num_heads,
-                concat=True,  # if True => output_dim = hidden_dim * num_heads
+                # heads=num_heads,
+                add_self_loops=False,
+                # concat=True,  # if True => output_dim = hidden_dim * num_heads
             )
         )
 
         # 2) Middle GAT layers: hidden_dim -> hidden_dim
         for _ in range(num_layers - 2):
             self.convs.append(
-                GATv2Conv(
-                    in_channels=hidden_dim * num_heads,  # since we concat above
+                GCNConv(
+                    in_channels=hidden_dim,
                     out_channels=hidden_dim,
-                    heads=num_heads,
-                    concat=True,
+                    # heads=num_heads,
+                    add_self_loops=False,
+                    # concat=True,  # if True => output_dim = hidden_dim * num_heads
                 )
             )
 
         # 3) Final GAT layer: hidden_dim -> output_dim
         #    Typically for regression, we use a single head (heads=1) and concat=False
         self.convs.append(
-            GATv2Conv(
-                in_channels=hidden_dim * num_heads,
+            GCNConv(
+                in_channels=hidden_dim,
                 out_channels=output_dim,
-                heads=1,
-                concat=False,  # don't concat the heads for the output
+                # heads=num_heads,
+                add_self_loops=False,
+                # concat=True,  # if True => output_dim = hidden_dim * num_heads
             )
         )
 
