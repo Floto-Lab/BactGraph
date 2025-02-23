@@ -6,7 +6,7 @@ from torch.optim import AdamW
 from torch_geometric.nn import GCNConv
 from torchmetrics.functional import pearson_corrcoef, r2_score
 
-from bactgraph.modeling.utils import batch_into_single_graph
+from bactgraph.modeling.utils import batch_into_single_graph, group_by_label
 
 
 class GATModel(nn.Module):
@@ -187,12 +187,24 @@ class BactGraphModel(pl.LightningModule):
         y_flat = y[y != -100.0]
         loss = F.mse_loss(preds_flat, y_flat)
 
-        # y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
-        # print(y.shape)
-        pearson = pearson_corrcoef(preds_flat, y_flat)
-        r2 = r2_score(preds_flat, y_flat)
+        y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1)).squeeze(-1)
+        preds = group_by_label(preds.view(-1).unsqueeze(-1), gene_indices.view(-1)).squeeze(-1)
 
-        res = {"val_loss": loss, "val_pearson": pearson, "val_r2": r2}
+        pearson_arr = []
+        r2_arr = []
+        for idx in range(y.shape[0]):
+            y_gene = y[idx, :]
+            preds_gene = preds[idx, :]
+            y_gene = y_gene[y_gene != -100.0]
+            preds_gene = preds_gene[y_gene != -100.0]
+            pearson = pearson_corrcoef(preds_gene, y_gene)
+            r2 = r2_score(preds_gene, y_gene)
+            pearson_arr.append(pearson)
+            r2_arr.append(r2)
+        pearson = torch.tensor(pearson_arr).mean()
+        r2 = torch.tensor(r2_arr).mean()
+
+        res = {"val_loss": loss, "val_gene_pearson": pearson, "val_gene_r2": r2}
         self.log_dict(res, prog_bar=True, batch_size=self.config["batch_size"])
 
         return res
@@ -208,8 +220,23 @@ class BactGraphModel(pl.LightningModule):
         preds = preds[y.view(-1) != -100.0]
         y = y[y != -100.0]
         loss = F.mse_loss(preds, y)
-        pearson = pearson_corrcoef(preds, y)
-        r2 = r2_score(preds, y)
+
+        y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1)).squeeze(-1)
+        preds = group_by_label(preds.view(-1).unsqueeze(-1), gene_indices.view(-1)).squeeze(-1)
+
+        pearson_arr = []
+        r2_arr = []
+        for idx in range(y.shape[0]):
+            y_gene = y[idx, :]
+            preds_gene = preds[idx, :]
+            y_gene = y_gene[y_gene != -100.0]
+            preds_gene = preds_gene[y_gene != -100.0]
+            pearson = pearson_corrcoef(preds_gene, y_gene)
+            r2 = r2_score(preds_gene, y_gene)
+            pearson_arr.append(pearson)
+            r2_arr.append(r2)
+        pearson = torch.tensor(pearson_arr).mean()
+        r2 = torch.tensor(r2_arr).mean()
 
         res = {"test_loss": loss, "test_pearson": pearson, "test_r2": r2}
         self.log_dict(res, prog_bar=True, batch_size=self.config["batch_size"])
