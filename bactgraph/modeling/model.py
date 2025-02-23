@@ -234,6 +234,9 @@ class BactGraphModel(pl.LightningModule):
             preds_gene = preds[idx, :]
             preds_gene = preds_gene[y_gene != -100.0]
             y_gene = y_gene[y_gene != -100.0]
+
+            if len(y_gene) < 10:
+                continue
             pearson = pearson_corrcoef(preds_gene, y_gene)
             r2 = r2_score(preds_gene, y_gene)
             pearson_arr.append(pearson)
