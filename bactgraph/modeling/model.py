@@ -181,8 +181,6 @@ class BactGraphModel(pl.LightningModule):
         x_batch, edge_index_batch, y, gene_indices = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
-        # preds_flat = preds.view(-1)
-        # y_flat = y.view(-1)
         preds_flat = preds[y.view(-1) != -100.0]
         y_flat = y[y != -100.0]
         loss = F.mse_loss(preds_flat, y_flat)
@@ -200,14 +198,23 @@ class BactGraphModel(pl.LightningModule):
 
             if len(y_gene) < 10:
                 continue
-            pearson = pearson_corrcoef(preds_gene, y_gene)
-            r2 = r2_score(preds_gene, y_gene)
-            pearson_arr.append(pearson)
-            r2_arr.append(r2)
-        pearson = torch.tensor(pearson_arr).mean()
-        r2 = torch.tensor(r2_arr).mean()
+            pearson_gene = pearson_corrcoef(preds_gene, y_gene)
+            r2_gene = r2_score(preds_gene, y_gene)
+            pearson_arr.append(pearson_gene)
+            r2_arr.append(r2_gene)
 
-        res = {"val_loss": loss, "val_gene_pearson": pearson, "val_gene_r2": r2}
+        pearson_gene = torch.tensor(pearson_arr).mean()
+        r2_gene = torch.tensor(r2_arr).mean()
+        pearson = pearson_corrcoef(preds_flat, y_flat)
+        r2 = r2_score(preds_flat, y_flat)
+
+        res = {
+            "val_loss": loss,
+            "val_pearson": pearson,
+            "val_r2": r2,
+            "val_gene_pearson": pearson_gene,
+            "val_gene_r2": r2_gene,
+        }
         self.log_dict(res, prog_bar=True, batch_size=self.config["batch_size"])
 
         return res
@@ -217,12 +224,9 @@ class BactGraphModel(pl.LightningModule):
         x_batch, edge_index_batch, y, gene_indices = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
-        # y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
-        preds = preds.view(-1)
-        y = y.view(-1)
-        preds = preds[y.view(-1) != -100.0]
-        y = y[y != -100.0]
-        loss = F.mse_loss(preds, y)
+        preds_flat = preds[y.view(-1) != -100.0]
+        y_flat = y[y != -100.0]
+        loss = F.mse_loss(preds_flat, y_flat)
 
         y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1)).squeeze(-1)
         preds = group_by_label(preds.view(-1).unsqueeze(-1), gene_indices.view(-1)).squeeze(-1)
@@ -237,14 +241,23 @@ class BactGraphModel(pl.LightningModule):
 
             if len(y_gene) < 10:
                 continue
-            pearson = pearson_corrcoef(preds_gene, y_gene)
-            r2 = r2_score(preds_gene, y_gene)
-            pearson_arr.append(pearson)
-            r2_arr.append(r2)
-        pearson = torch.tensor(pearson_arr).mean()
-        r2 = torch.tensor(r2_arr).mean()
+            pearson_gene = pearson_corrcoef(preds_gene, y_gene)
+            r2_gene = r2_score(preds_gene, y_gene)
+            pearson_arr.append(pearson_gene)
+            r2_arr.append(r2_gene)
 
-        res = {"test_loss": loss, "test_pearson": pearson, "test_r2": r2}
+        pearson_gene = torch.tensor(pearson_arr).mean()
+        r2_gene = torch.tensor(r2_arr).mean()
+        pearson = pearson_corrcoef(preds_flat, y_flat)
+        r2 = r2_score(preds_flat, y_flat)
+
+        res = {
+            "test_loss": loss,
+            "test_pearson": pearson,
+            "test_r2": r2,
+            "test_gene_pearson": pearson_gene,
+            "test_gene_r2": r2_gene,
+        }
         self.log_dict(res, prog_bar=True, batch_size=self.config["batch_size"])
 
         return res
