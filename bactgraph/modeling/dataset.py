@@ -65,7 +65,7 @@ class BactGraphDataset(Dataset):
             # randomize the network experiment
             print("Randomizing the network experiment by randomly sampling edges.")
             torch.manual_seed(random_seed)
-            self.triples = torch.randint(0, len(self.gene2idx), self.triples.shape)[:, :1]
+            self.triples = torch.randint(0, len(self.gene2idx), self.triples.shape)
 
         # fully connected network
         # self.triples = torch.stack(
