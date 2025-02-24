@@ -168,7 +168,7 @@ def preprocess_data_for_training_pheno(
     # create datasets
     train_dataset = BactGraphPhenoDataset(
         protein_embeddings=protein_embeddings.loc[train_strains],
-        pheno_df=pheno_df[train_strains],
+        pheno_df=pheno_df.loc[train_strains],
         gene2idx=gene2idx,
         perturb_network=perturb_network,
         random_seed=random_seed,
@@ -177,7 +177,7 @@ def preprocess_data_for_training_pheno(
     )
     val_dataset = BactGraphPhenoDataset(
         protein_embeddings=protein_embeddings.loc[val_strains],
-        pheno_df=pheno_df[val_strains],
+        pheno_df=pheno_df.loc[val_strains],
         gene2idx=gene2idx,
         perturb_network=perturb_network,
         random_seed=random_seed,
@@ -186,7 +186,7 @@ def preprocess_data_for_training_pheno(
     )
     test_dataset = BactGraphPhenoDataset(
         protein_embeddings=protein_embeddings.loc[test_strains],
-        pheno_df=pheno_df[test_strains],
+        pheno_df=pheno_df.loc[test_strains],
         gene2idx=gene2idx,
         perturb_network=perturb_network,
         random_seed=random_seed,
