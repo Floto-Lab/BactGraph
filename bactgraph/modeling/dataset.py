@@ -88,9 +88,17 @@ class BactGraphDataset(Dataset):
         # get the expression data for the idx-th strain
         strain = self.strains[idx]
         # get protein embeddings
-        prot_emb = torch.tensor(np.stack(self.protein_embeddings.loc[strain].values), dtype=torch.float32)
+        prot_embeds = []
+        for pe in self.protein_embeddings.loc[strain].values:
+            if pe is not None:
+                dim = len(pe)
+                prot_embeds.append(pe)
+            else:
+                prot_embeds.append(np.zeros(dim, dtype=np.float32))
+        prot_embeds = torch.tensor(np.stack(prot_embeds), dtype=torch.float32)
+
         expr_values = torch.tensor(
             [self.expression_df.loc[gene, strain] for gene in self.protein_embeddings.columns], dtype=torch.float32
         )
         gene_idx = torch.arange(len(self.protein_embeddings.columns), dtype=torch.long)
-        return prot_emb, self.triples, expr_values, gene_idx
+        return prot_embeds, self.triples, expr_values, gene_idx
