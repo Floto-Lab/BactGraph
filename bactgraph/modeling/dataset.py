@@ -56,6 +56,8 @@ class BactGraphDataset(Dataset):
         self.expression_df = expression_df
         self.gene2idx = gene2idx
 
+        self.dim = len(protein_embeddings.iloc[0, 0])
+
         # get triples
         self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)[:2, :]
         # reverse the direction
@@ -91,10 +93,9 @@ class BactGraphDataset(Dataset):
         prot_embeds = []
         for pe in self.protein_embeddings.loc[strain].values:
             if pe is not None:
-                dim = len(pe)
                 prot_embeds.append(pe)
             else:
-                prot_embeds.append(np.zeros(dim, dtype=np.float32))
+                prot_embeds.append(np.zeros(self.dim, dtype=np.float32))
         prot_embeds = torch.tensor(np.stack(prot_embeds), dtype=torch.float32)
 
         expr_values = torch.tensor(
