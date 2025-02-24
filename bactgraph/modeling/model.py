@@ -149,6 +149,7 @@ class BactGraphModel(pl.LightningModule):
 
     def forward(self, x_batch: torch.Tensor, edge_index_batch: torch.Tensor, gene_indices: torch.Tensor):
         """Expects a PyG data object with data.x (node features) and data.edge_index (graph connectivity)."""
+        print("x_batch shape:", x_batch)
         x, edge_index, batch_vector = batch_into_single_graph(x_batch, edge_index_batch.type(torch.long))
         batch_size = x_batch.shape[0]
         logits = self.gnn_module(x, edge_index).squeeze()
@@ -165,6 +166,7 @@ class BactGraphModel(pl.LightningModule):
         if self.phenotype_prediction:
             # re-batch the tensors from one graph to strain graphs to have a probability for a strain
             logits = unbatch_single_graph(logits, batch_vector)
+            print("logits after unbatching shape:", logits.shape)
             # take the mean of all nodes in the graph
             logits = logits.mean(dim=1)
             # predict the phenotype
@@ -182,6 +184,7 @@ class BactGraphModel(pl.LightningModule):
         # y = y.view(-1)
 
         if self.phenotype_prediction:
+            print("preds shape:", preds.shape, "y shape:", y.shape)
             loss = F.binary_cross_entropy_with_logits(preds, y)
         else:
             preds = preds[y.view(-1) != -100.0]
@@ -196,6 +199,7 @@ class BactGraphModel(pl.LightningModule):
         preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
         if self.phenotype_prediction:
+            print("preds shape:", preds.shape, "y shape:", y.shape)
             loss = F.binary_cross_entropy_with_logits(preds, y)
             res = compute_binary_metrics(preds, y, split="val")
         else:
