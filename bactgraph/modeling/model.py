@@ -200,6 +200,11 @@ class BactGraphModel(pl.LightningModule):
                 continue
             pearson_gene = pearson_corrcoef(preds_gene, y_gene)
             r2_gene = r2_score(preds_gene, y_gene)
+
+            if torch.isnan(pearson_gene):
+                continue
+            if torch.isnan(r2_gene):
+                continue
             pearson_arr.append(pearson_gene)
             r2_arr.append(r2_gene)
 
