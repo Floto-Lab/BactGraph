@@ -150,7 +150,7 @@ def preprocess_data_for_training_pheno(
     strains_w_pheno = pheno_df.index.tolist()
     strains_w_prot_emb = protein_embeddings.index.tolist()
     strains_of_interest = list(set(strains_w_pheno).intersection(strains_w_prot_emb))
-    pheno_df = pheno_df[strains_of_interest]
+    pheno_df = pheno_df[pheno_df.index.isin(strains_of_interest)]
     protein_embeddings = protein_embeddings.loc[strains_of_interest]
     print(f"Total nr of strains available: {len(strains_of_interest)}")
 
