@@ -4,12 +4,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import AdamW
 from torch_geometric.nn import GCNConv
-from torchmetrics.functional import pearson_corrcoef, r2_score
 
-from bactgraph.modeling.utils import batch_into_single_graph, group_by_label
+from bactgraph.modeling.utils import (
+    batch_into_single_graph,
+    compute_binary_metrics,
+    compute_regression_metrics,
+    unbatch_single_graph,
+)
 
 
-class GATModel(nn.Module):
+class GNNModel(nn.Module):
     """Graph Attention Network (GAT) model."""
 
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, num_layers: int, dropout: int, num_heads: int):
@@ -105,7 +109,7 @@ class GATModel(nn.Module):
 class BactGraphModel(pl.LightningModule):
     """PyTorch Lightning BactGraph model."""
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, phenotype_prediction: bool = False):
         """Initialize the model
 
         Config dictionary can include:
@@ -121,9 +125,10 @@ class BactGraphModel(pl.LightningModule):
         """
         super().__init__()
         self.config = config
+        self.phenotype_prediction = phenotype_prediction
 
-        # Build the underlying GAT model (nn.Module)
-        self.gat_module = GATModel(
+        # Build the underlying GNN model (nn.Module)
+        self.gnn_module = GNNModel(
             input_dim=config["input_dim"],
             hidden_dim=config["hidden_dim"],
             output_dim=config["output_dim"],
@@ -132,14 +137,11 @@ class BactGraphModel(pl.LightningModule):
             num_heads=config["num_heads"],
         )
 
-        self.bias = torch.nn.Parameter(torch.zeros(config["n_genes"]), requires_grad=True)  # .unsqueeze(1)
-        # self.relu = nn.ReLU()
-        # self.dropout = nn.Dropout(config["dropout"])
-        # self.gene_matrix = nn.Parameter(
-        #     nn.init.xavier_normal_(torch.empty(config["n_genes"], config["output_dim"])), requires_grad=True
-        # )
-
-        # self.gene_layers = nn.ModuleList([nn.Linear(config["output_dim"], 1) for _ in range(config["n_genes"])])
+        if self.phenotype_prediction:
+            self.linear = nn.Linear(config["output_dim"], 1)
+            self.droput = nn.Dropout(0.2)
+        else:
+            self.gene_bias = torch.nn.Parameter(torch.zeros(config["n_genes"]), requires_grad=True)  # .unsqueeze(1)
 
         # Learning rate (default to 1e-3 if not specified)
         self.lr = config.get("lr", 1e-3)
@@ -147,9 +149,9 @@ class BactGraphModel(pl.LightningModule):
 
     def forward(self, x_batch: torch.Tensor, edge_index_batch: torch.Tensor, gene_indices: torch.Tensor):
         """Expects a PyG data object with data.x (node features) and data.edge_index (graph connectivity)."""
-        x, edge_index, _ = batch_into_single_graph(x_batch, edge_index_batch.type(torch.long))
+        x, edge_index, batch_vector = batch_into_single_graph(x_batch, edge_index_batch.type(torch.long))
         batch_size = x_batch.shape[0]
-        logits = self.gat_module(x, edge_index).squeeze() + self.bias.repeat(batch_size)
+        logits = self.gnn_module(x, edge_index).squeeze()
         # last_hidden_state = self.gat_module(x, edge_index)
         # last_hidden_state = group_by_label(self.dropout(last_hidden_state), gene_indices.view(-1))
         # logits = torch.einsum(
@@ -160,7 +162,15 @@ class BactGraphModel(pl.LightningModule):
         #     logits.append(self.gene_layers[idx](gene_lhs))
         # logits = torch.stack(logits, dim=1).squeeze()
         # logits = last_hidden_state.squeeze() + self.bias.to(last_hidden_state.device)
-        return F.softplus(logits)
+        if self.phenotype_prediction:
+            # re-batch the tensors from one graph to strain graphs to have a probability for a strain
+            logits = unbatch_single_graph(logits, batch_vector)
+            # take the mean of all nodes in the graph
+            logits = logits.mean(dim=1)
+            # predict the phenotype
+            logits = self.linear(self.droput(logits)).squeeze()
+            return logits
+        return F.softplus(logits + self.gene_bias.repeat(batch_size))
 
     def training_step(self, batch, batch_idx):
         """Training step."""
@@ -170,9 +180,13 @@ class BactGraphModel(pl.LightningModule):
         # y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1))
         # preds = preds.view(-1)
         # y = y.view(-1)
-        preds = preds[y.view(-1) != -100.0]
-        y = y[y != -100.0]
-        loss = F.mse_loss(preds, y)
+
+        if self.phenotype_prediction:
+            loss = F.binary_cross_entropy_with_logits(preds, y)
+        else:
+            preds = preds[y.view(-1) != -100.0]
+            y = y[y != -100.0]
+            loss = F.mse_loss(preds, y)
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss
 
@@ -181,47 +195,17 @@ class BactGraphModel(pl.LightningModule):
         x_batch, edge_index_batch, y, gene_indices = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
-        preds_flat = preds[y.view(-1) != -100.0]
-        y_flat = y[y != -100.0]
-        loss = F.mse_loss(preds_flat, y_flat)
+        if self.phenotype_prediction:
+            loss = F.binary_cross_entropy_with_logits(preds, y)
+            res = compute_binary_metrics(preds, y, split="val")
+        else:
+            preds_flat = preds[y.view(-1) != -100.0]
+            y_flat = y[y != -100.0]
+            loss = F.mse_loss(preds_flat, y_flat)
+            res = compute_regression_metrics(preds, y, gene_indices, split="val")
 
-        y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1)).squeeze(-1)
-        preds = group_by_label(preds.view(-1).unsqueeze(-1), gene_indices.view(-1)).squeeze(-1)
-
-        pearson_arr = []
-        r2_arr = []
-        for idx in range(y.shape[0]):
-            y_gene = y[idx, :]
-            preds_gene = preds[idx, :]
-            preds_gene = preds_gene[y_gene != -100.0]
-            y_gene = y_gene[y_gene != -100.0]
-
-            if len(y_gene) < 10:
-                continue
-            pearson_gene = pearson_corrcoef(preds_gene, y_gene)
-            r2_gene = r2_score(preds_gene, y_gene)
-
-            if torch.isnan(pearson_gene):
-                continue
-            if torch.isnan(r2_gene):
-                continue
-            pearson_arr.append(pearson_gene)
-            r2_arr.append(r2_gene)
-
-        pearson_gene = torch.tensor(pearson_arr).mean()
-        r2_gene = torch.tensor(r2_arr).mean()
-        pearson = pearson_corrcoef(preds_flat, y_flat)
-        r2 = r2_score(preds_flat, y_flat)
-
-        res = {
-            "val_loss": loss,
-            "val_pearson": pearson,
-            "val_r2": r2,
-            "val_gene_pearson": pearson_gene,
-            "val_gene_r2": r2_gene,
-        }
+        res["loss"] = loss
         self.log_dict(res, prog_bar=True, batch_size=self.config["batch_size"])
-
         return res
 
     def test_step(self, batch, batch_idx) -> dict:
@@ -229,49 +213,17 @@ class BactGraphModel(pl.LightningModule):
         x_batch, edge_index_batch, y, gene_indices = batch
         preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
-        preds_flat = preds[y.view(-1) != -100.0]
-        y_flat = y[y != -100.0]
-        loss = F.mse_loss(preds_flat, y_flat)
+        if self.phenotype_prediction:
+            loss = F.binary_cross_entropy_with_logits(preds, y)
+            res = compute_binary_metrics(preds, y, split="test")
+        else:
+            preds_flat = preds[y.view(-1) != -100.0]
+            y_flat = y[y != -100.0]
+            loss = F.mse_loss(preds_flat, y_flat)
+            res = compute_regression_metrics(preds, y, gene_indices, split="test")
 
-        y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1)).squeeze(-1)
-        preds = group_by_label(preds.view(-1).unsqueeze(-1), gene_indices.view(-1)).squeeze(-1)
-
-        pearson_arr = []
-        r2_arr = []
-        for idx in range(y.shape[0]):
-            y_gene = y[idx, :]
-            preds_gene = preds[idx, :]
-            preds_gene = preds_gene[y_gene != -100.0]
-            y_gene = y_gene[y_gene != -100.0]
-
-            if len(y_gene) < 10:
-                continue
-            pearson_gene = pearson_corrcoef(preds_gene, y_gene)
-            r2_gene = r2_score(preds_gene, y_gene)
-
-            if torch.isnan(pearson_gene):
-                continue
-            if torch.isnan(r2_gene):
-                continue
-            pearson_arr.append(pearson_gene)
-            r2_arr.append(r2_gene)
-            pearson_arr.append(pearson_gene)
-            r2_arr.append(r2_gene)
-
-        pearson_gene = torch.tensor(pearson_arr).mean()
-        r2_gene = torch.tensor(r2_arr).mean()
-        pearson = pearson_corrcoef(preds_flat, y_flat)
-        r2 = r2_score(preds_flat, y_flat)
-
-        res = {
-            "test_loss": loss,
-            "test_pearson": pearson,
-            "test_r2": r2,
-            "test_gene_pearson": pearson_gene,
-            "test_gene_r2": r2_gene,
-        }
+        res["loss"] = loss
         self.log_dict(res, prog_bar=True, batch_size=self.config["batch_size"])
-
         return res
 
     def configure_optimizers(self):

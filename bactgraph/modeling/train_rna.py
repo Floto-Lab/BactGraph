@@ -5,7 +5,7 @@ import numpy as np
 from lightning import seed_everything
 from tap import Tap
 
-from bactgraph.modeling.data_reader import preprocess_data_for_training
+from bactgraph.modeling.data_reader import preprocess_data_for_training_rna
 from bactgraph.modeling.model import BactGraphModel
 from bactgraph.modeling.trainer import create_trainer
 
@@ -14,7 +14,7 @@ def run(args):
     """Run training and evaluation of the BactGraph model."""
     # get the data
     config = args.as_dict()
-    data_reader_output = preprocess_data_for_training(
+    data_reader_output = preprocess_data_for_training_rna(
         input_dir=args.input_dir,
         transform_norm_expression_fn=np.log,
         train_size=args.train_size,

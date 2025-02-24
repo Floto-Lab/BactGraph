@@ -39,7 +39,7 @@ def perturb_mtx_to_triples(df: pd.DataFrame, gene2idx: dict[str, int]) -> torch.
     return triples
 
 
-class BactGraphDataset(Dataset):
+class BactGraphRNADataset(Dataset):
     """Dataset of gene networks in bacteria for BactGraph project."""
 
     def __init__(
@@ -104,3 +104,63 @@ class BactGraphDataset(Dataset):
         )
         gene_idx = torch.arange(len(self.protein_embeddings.columns), dtype=torch.long)
         return prot_embeds, self.triples, expr_values, gene_idx
+
+
+class BactGraphPhenoDataset(Dataset):
+    """Dataset of gene networks in bacteria for BactGraph project."""
+
+    def __init__(
+        self,
+        protein_embeddings: pd.DataFrame,
+        pheno_df: pd.DataFrame,
+        gene2idx: dict[str, int],
+        perturb_network: pd.DataFrame,
+        random_seed: int = 42,
+        randomize_network: bool = False,
+        label_col: str = "label",
+    ):
+        self.protein_embeddings = protein_embeddings
+        self.pheno_df = pheno_df
+        self.gene2idx = gene2idx
+        self.label_col = label_col
+
+        self.dim = len(protein_embeddings.iloc[0, 0])
+
+        # get triples
+        self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)[:2, :]
+        # reverse the direction
+        # self.triples = self.triples[:2, :].flip(0)
+
+        if randomize_network:
+            # randomize the network experiment
+            print("Randomizing the network experiment by randomly sampling edges.")
+            torch.manual_seed(random_seed)
+            self.triples = torch.randint(0, len(self.gene2idx), self.triples.shape)[:, :1]
+        print("Edges shape:", self.triples.shape)
+
+        # fully connected network
+        # self.triples = torch.stack(
+        #     [torch.arange(len(self.gene2idx)), torch.arange(len(self.gene2idx)), torch.ones(len(self.gene2idx))],
+        #     dim=0,
+        # )
+
+        self.strains = self.protein_embeddings.index.tolist()
+
+    def __len__(self):
+        return len(self.protein_embeddings)
+
+    def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        # get the expression data for the idx-th strain
+        strain = self.strains[idx]
+        # get protein embeddings
+        prot_embeds = []
+        for pe in self.protein_embeddings.loc[strain].values:
+            if pe is not None:
+                prot_embeds.append(pe)
+            else:
+                prot_embeds.append(np.zeros(self.dim, dtype=np.float32))
+        prot_embeds = torch.tensor(np.stack(prot_embeds), dtype=torch.float32)
+
+        label = torch.tensor(self.pheno_df.loc[strain, self.label_col], dtype=torch.long)
+        gene_idx = torch.arange(len(self.protein_embeddings.columns), dtype=torch.long)
+        return prot_embeds, self.triples, label, gene_idx

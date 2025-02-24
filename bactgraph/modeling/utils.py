@@ -1,4 +1,5 @@
 import torch
+from torchmetrics.functional import accuracy, auroc, average_precision, f1_score, pearson_corrcoef, r2_score
 
 
 def batch_into_single_graph(x_batch: torch.Tensor, edge_index_batch: torch.Tensor):
@@ -74,6 +75,64 @@ def batch_into_single_graph(x_batch: torch.Tensor, edge_index_batch: torch.Tenso
     return merged_x, merged_edge_index, batch_vector
 
 
+def unbatch_single_graph(
+    merged_logits: torch.Tensor,  # [B*N, d_out]
+    batch_vector: torch.Tensor,  # [B*N], each entry in [0..B-1]
+) -> torch.Tensor:
+    """Unbatch a single graph
+
+    Given a merged tensor of node (or features) and a batch_vector
+    that indicates which subgraph each row belongs to, reconstruct a
+    [B, N, d_out] tensor.
+
+    Parameters
+    ----------
+    merged_logits : torch.Tensor
+        Shape: [B*N, d_out]
+        Node-level logits/features after merging.
+
+    batch_vector : torch.Tensor
+        Shape: [B*N]
+        For each node index in range [0..B*N-1],
+        `batch_vector[i]` is the subgraph ID (0 <= ID < B).
+
+    Returns
+    -------
+    logits_unbatched : torch.Tensor
+        Shape: [B, N, d_out]
+        The node logits reshaped into B subgraphs, each with N nodes.
+    """
+    # 1) Determine how many distinct subgraphs (B) we have
+    B = batch_vector.max().item() + 1  # subgraphs labeled 0..(B-1)
+
+    # 2) We know total_nodes = B*N (from shape of merged_logits)
+    total_nodes, d_out = merged_logits.shape
+
+    # 3) Infer N by dividing the total nodes among B subgraphs
+    if total_nodes % B != 0:
+        raise ValueError(f"Cannot evenly split {total_nodes} nodes into {B} subgraphs.")
+    N = total_nodes // B
+
+    # 4) Allocate output [B, N, d_out]
+    logits_unbatched = torch.zeros(B, N, d_out, dtype=merged_logits.dtype, device=merged_logits.device)
+
+    # 5) Fill each subgraph slice according to batch_vector
+    node_counts = [0] * B  # how many nodes we've placed in each subgraph
+    for global_node_idx in range(total_nodes):
+        subgraph_idx = batch_vector[global_node_idx].item()  # which subgraph this node belongs to
+        local_node_idx = node_counts[subgraph_idx]
+        if local_node_idx >= N:
+            raise ValueError(
+                f"Subgraph {subgraph_idx} has more than {N} nodes " f"based on the batch_vector assignment."
+            )
+
+        # Place the row in the correct [subgraph, node, :] slot
+        logits_unbatched[subgraph_idx, local_node_idx] = merged_logits[global_node_idx]
+        node_counts[subgraph_idx] += 1
+
+    return logits_unbatched
+
+
 def group_by_label(X: torch.Tensor, Y: torch.Tensor) -> torch.Tensor:
     """
     Group rows of X by the integer labels in Y.
@@ -95,3 +154,60 @@ def group_by_label(X: torch.Tensor, Y: torch.Tensor) -> torch.Tensor:
     # Stack groups along a new dimension 0 => [Z, W, M]
     grouped = torch.stack(groups, dim=0)
     return grouped
+
+
+def compute_regression_metrics(
+    preds: torch.Tensor,
+    y: torch.Tensor,
+    gene_indices: torch.Tensor,
+    split: str = "val",
+) -> dict[str, torch.Tensor]:
+    """Compute regression metrics"""
+    preds_flat = preds[y.view(-1) != -100.0]
+    y_flat = y[y != -100.0]
+
+    y = group_by_label(y.view(-1).unsqueeze(-1), gene_indices.view(-1)).squeeze(-1)
+    preds = group_by_label(preds.view(-1).unsqueeze(-1), gene_indices.view(-1)).squeeze(-1)
+
+    pearson_arr = []
+    r2_arr = []
+    for idx in range(y.shape[0]):
+        y_gene = y[idx, :]
+        preds_gene = preds[idx, :]
+        preds_gene = preds_gene[y_gene != -100.0]
+        y_gene = y_gene[y_gene != -100.0]
+
+        if len(y_gene) < 10:
+            continue
+        pearson_gene = pearson_corrcoef(preds_gene, y_gene)
+        r2_gene = r2_score(preds_gene, y_gene)
+
+        if torch.isnan(pearson_gene):
+            continue
+        if torch.isnan(r2_gene):
+            continue
+        pearson_arr.append(pearson_gene)
+        r2_arr.append(r2_gene)
+
+    pearson_gene = torch.tensor(pearson_arr).mean()
+    r2_gene = torch.tensor(r2_arr).mean()
+    pearson = pearson_corrcoef(preds_flat, y_flat)
+    r2 = r2_score(preds_flat, y_flat)
+
+    res = {
+        f"{split}_pearson": pearson,
+        f"{split}_r2": r2,
+        f"{split}_gene_pearson": pearson_gene,
+        f"{split}_gene_r2": r2_gene,
+    }
+    return res
+
+
+def compute_binary_metrics(preds: torch.Tensor, y: torch.Tensor, split: str = "val") -> dict[str, torch.Tensor]:
+    """Compute binary metrics"""
+    return {
+        f"{split}_f1": f1_score(preds, y, task="binary"),
+        f"{split}_accuracy": accuracy(preds, y, task="binary"),
+        f"{split}_auroc": auroc(preds, y, task="binary"),
+        f"{split}_auprc": average_precision(preds, y, task="binary"),
+    }
