@@ -53,6 +53,7 @@ def preprocess_data_for_training(
     strains_of_interest = list(set(strains_w_expression).intersection(strains_w_prot_emb))
     expression_df = expression_df[strains_of_interest]
     protein_embeddings = protein_embeddings.loc[strains_of_interest]
+    print(f"Total nr of strains available: {len(genes_of_interest)}")
 
     # split the data
     random.seed(random_seed)
