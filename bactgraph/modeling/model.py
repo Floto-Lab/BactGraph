@@ -149,7 +149,7 @@ class BactGraphModel(pl.LightningModule):
 
     def forward(self, x_batch: torch.Tensor, edge_index_batch: torch.Tensor, gene_indices: torch.Tensor):
         """Expects a PyG data object with data.x (node features) and data.edge_index (graph connectivity)."""
-        print("x_batch shape:", x_batch)
+        print("x_batch shape:", x_batch.shape)
         x, edge_index, batch_vector = batch_into_single_graph(x_batch, edge_index_batch.type(torch.long))
         batch_size = x_batch.shape[0]
         logits = self.gnn_module(x, edge_index).squeeze()
@@ -185,7 +185,7 @@ class BactGraphModel(pl.LightningModule):
 
         if self.phenotype_prediction:
             print("preds shape:", preds.shape, "y shape:", y.shape)
-            loss = F.binary_cross_entropy_with_logits(preds, y)
+            loss = F.binary_cross_entropy_with_logits(preds, y.type_as(preds))
         else:
             preds = preds[y.view(-1) != -100.0]
             y = y[y != -100.0]
@@ -200,7 +200,7 @@ class BactGraphModel(pl.LightningModule):
 
         if self.phenotype_prediction:
             print("preds shape:", preds.shape, "y shape:", y.shape)
-            loss = F.binary_cross_entropy_with_logits(preds, y)
+            loss = F.binary_cross_entropy_with_logits(preds, y.type_as(preds))
             res = compute_binary_metrics(preds, y, split="val")
         else:
             preds_flat = preds[y.view(-1) != -100.0]
@@ -218,7 +218,7 @@ class BactGraphModel(pl.LightningModule):
         preds = self.forward(x_batch, edge_index_batch.type(torch.long), gene_indices)
 
         if self.phenotype_prediction:
-            loss = F.binary_cross_entropy_with_logits(preds, y)
+            loss = F.binary_cross_entropy_with_logits(preds, y.type_as(preds))
             res = compute_binary_metrics(preds, y, split="test")
         else:
             preds_flat = preds[y.view(-1) != -100.0]
