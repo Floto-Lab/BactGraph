@@ -118,13 +118,14 @@ class BactGraphPhenoDataset(Dataset):
         random_seed: int = 42,
         randomize_network: bool = False,
         label_col: str = "label",
+        dim: int = 480,
     ):
         self.protein_embeddings = protein_embeddings
         self.pheno_df = pheno_df
         self.gene2idx = gene2idx
         self.label_col = label_col
 
-        self.dim = len(protein_embeddings.iloc[0, 0])
+        self.dim = dim
 
         # get triples
         self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)[:2, :]
