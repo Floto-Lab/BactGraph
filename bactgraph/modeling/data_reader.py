@@ -13,7 +13,9 @@ from bactgraph.modeling.dataset import BactGraphPhenoDataset, BactGraphRNADatase
 BACTMAP_PROTEINS_FILE_NAME = "assembly_proteins_prot_embeds.parquet"
 NORMALISED_EXPRESSION_FILE_NAME = "norm_dat_pao1.tsv"
 PERTURB_NETWORK_FILE_NAME = "llcb_perturb_hits_adj_matrix.tsv"
+
 PHENOTYPIC_FILE_NAME = "assembly_proteins_metadata.tsv"
+PHENOTYPIC_PROTEINS_FILE_NAME = "assembly_prot_embeds_all.parquet"
 
 
 def preprocess_data_for_training_rna(
@@ -128,7 +130,7 @@ def preprocess_data_for_training_pheno(
 ) -> dict[str, Any]:
     """Preprocess the data for training the BactGraph model."""
     # read the data
-    protein_embeddings = pd.read_parquet(os.path.join(input_dir, BACTMAP_PROTEINS_FILE_NAME))
+    protein_embeddings = pd.read_parquet(os.path.join(input_dir, PHENOTYPIC_PROTEINS_FILE_NAME))
     pheno_df = pd.read_csv(os.path.join(input_dir, PHENOTYPIC_FILE_NAME), sep="\t").set_index("sample_id")
     perturb_network = pd.read_csv(os.path.join(input_dir, PERTURB_NETWORK_FILE_NAME), sep="\t").set_index("gene_id")
 
