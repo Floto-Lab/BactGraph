@@ -79,6 +79,8 @@ def preprocess_data_for_training_rna(
         random_seed=random_seed,
         randomize_network=randomize_network,
     )
+    protein_embeddings.loc[val_strains].to_parquet("val_protein_embeddings.parquet")
+    expression_df[val_strains].to_parquet("val_expression_df.parquet")
     val_dataset = BactGraphRNADataset(
         protein_embeddings=protein_embeddings.loc[val_strains],
         expression_df=expression_df[val_strains],
