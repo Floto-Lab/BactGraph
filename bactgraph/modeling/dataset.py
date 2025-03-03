@@ -82,10 +82,6 @@ class BactGraphRNADataset(Dataset):
         self.expression_df = self.expression_df.apply(np.exp2)
         # transform the data with the provided function
         self.expression_df = self.expression_df.apply(transform_norm_expression_fn).fillna(-100.0)
-        print("protein embeddings cols:", self.protein_embeddings.columns)
-        print("protein embeddings index:", self.protein_embeddings.index)
-        print("Expression shape cols:", self.expression_df.columns)
-        print("Expression shape index:", self.expression_df.index)
 
         self.strains = self.expression_df.columns.tolist()
 
