@@ -57,7 +57,7 @@ class BactGraphRNADataset(Dataset):
         self.expression_df = expression_df
         self.gene2idx = gene2idx
 
-        self.dim = 480
+        self.dim = dim
 
         # get triples
         self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)[:2, :]
