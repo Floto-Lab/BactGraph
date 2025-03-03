@@ -81,6 +81,8 @@ class BactGraphRNADataset(Dataset):
         self.expression_df = self.expression_df.apply(np.exp2)
         # transform the data with the provided function
         self.expression_df = self.expression_df.apply(transform_norm_expression_fn).fillna(-100.0)
+        print("protein embeddings df:", self.protein_embeddings)
+        print("Expression shape df:", self.expression_df)
 
         self.strains = self.expression_df.columns.tolist()
 
@@ -99,13 +101,9 @@ class BactGraphRNADataset(Dataset):
                 prot_embeds.append(np.zeros(self.dim, dtype=np.float32))
         prot_embeds = torch.tensor(np.stack(prot_embeds), dtype=torch.float32)
 
-        try:
-            expr_values = torch.tensor(
-                [self.expression_df.loc[gene, strain] for gene in self.protein_embeddings.columns], dtype=torch.float32
-            )
-        except:  # noqa
-            print("Error for strain and gene:", strain)
-            print("vals fr strain:", [self.expression_df.loc[gene, strain] for gene in self.protein_embeddings.columns])
+        expr_values = torch.tensor(
+            [self.expression_df.loc[gene, strain] for gene in self.protein_embeddings.columns], dtype=torch.float32
+        )
         gene_idx = torch.arange(len(self.protein_embeddings.columns), dtype=torch.long)
         return prot_embeds, self.triples, expr_values, gene_idx
 
