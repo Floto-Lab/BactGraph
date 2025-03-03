@@ -99,9 +99,13 @@ class BactGraphRNADataset(Dataset):
                 prot_embeds.append(np.zeros(self.dim, dtype=np.float32))
         prot_embeds = torch.tensor(np.stack(prot_embeds), dtype=torch.float32)
 
-        expr_values = torch.tensor(
-            [self.expression_df.loc[gene, strain] for gene in self.protein_embeddings.columns], dtype=torch.float32
-        )
+        try:
+            expr_values = torch.tensor(
+                [self.expression_df.loc[gene, strain] for gene in self.protein_embeddings.columns], dtype=torch.float32
+            )
+        except:  # noqa
+            print("Error for strain and gene:", strain)
+            print("vals fr strain:", [self.expression_df.loc[gene, strain] for gene in self.protein_embeddings.columns])
         gene_idx = torch.arange(len(self.protein_embeddings.columns), dtype=torch.long)
         return prot_embeds, self.triples, expr_values, gene_idx
 
