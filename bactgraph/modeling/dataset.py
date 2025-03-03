@@ -51,12 +51,13 @@ class BactGraphRNADataset(Dataset):
         transform_norm_expression_fn: Callable = np.log,
         random_seed: int = 42,
         randomize_network: bool = False,
+        dim: int = 480,
     ):
         self.protein_embeddings = protein_embeddings
         self.expression_df = expression_df
         self.gene2idx = gene2idx
 
-        self.dim = len(protein_embeddings.iloc[0, 0])
+        self.dim = 480
 
         # get triples
         self.triples = perturb_mtx_to_triples(perturb_network, self.gene2idx)[:2, :]
