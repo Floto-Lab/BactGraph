@@ -46,6 +46,7 @@ def create_trainer(config: dict[str, Any]) -> pl.Trainer:
             early_stop_callback,
             checkpoint_callback,
         ],
+        deterministic=config["test"],
     )
 
     return trainer
