@@ -2,6 +2,7 @@ import json
 import os
 
 import numpy as np
+import pandas as pd
 from lightning import seed_everything
 from tap import Tap
 
@@ -10,7 +11,7 @@ from bactgraph.modeling.model import BactGraphModel
 from bactgraph.modeling.trainer import create_trainer
 
 
-def run(args):
+def run(args, random_state: int):
     """Run training and evaluation of the BactGraph model."""
     # get the data
     config = args.as_dict()
@@ -21,7 +22,7 @@ def run(args):
         test_size=args.test_size,
         batch_size=args.batch_size,
         num_workers=4,
-        random_seed=args.random_state,
+        random_seed=random_state,
         randomize_network=args.randomize_network,
     )
     config["n_genes"] = len(data_reader_output["gene2idx"])
@@ -51,6 +52,7 @@ def run(args):
     test_metrics = trainer.test(model, data_reader_output["test_dataloader"], ckpt_path="best")
     with open(os.path.join(args.output_dir, "test_metrics.json"), "w") as f:
         json.dump(test_metrics, f)
+    return test_metrics
 
 
 class TrainArgumentParser(Tap):
@@ -84,8 +86,6 @@ class TrainArgumentParser(Tap):
 
 def main(args):
     """Train the model."""
-    seed_everything(args.random_state)
-
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
@@ -94,7 +94,14 @@ def main(args):
         json.dump(args.as_dict(), f)
 
     # run training
-    run(args)
+    seeds = [1, 2, 3, 4, 5]
+    metrics_arr = []
+    for seed in seeds:
+        seed_everything(seed)
+        test_metrics = run(args, random_state=seed)
+        metrics_arr.append(test_metrics)
+    out_df = pd.DataFrame(metrics_arr)
+    out_df.to_csv(os.path.join(args.output_dir, "test_metrics_across_seeds.csv"))
 
 
 if __name__ == "__main__":
