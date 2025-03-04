@@ -98,9 +98,11 @@ def main(args):
     metrics_arr = []
     for seed in seeds:
         seed_everything(seed)
-        test_metrics = run(args, random_state=seed)
+        test_metrics = run(args, random_state=seed)[0]
+        test_metrics["seed"] = seed
         metrics_arr.append(test_metrics)
     out_df = pd.DataFrame(metrics_arr)
+    out_df["randomize_network"] = args.randomize_network
     out_df.to_csv(os.path.join(args.output_dir, "test_metrics_across_seeds.csv"))
 
 
