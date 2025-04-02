@@ -3,7 +3,7 @@ build-backend = "hatchling.build"
 requires = [ "hatchling" ]
 
 [project]
-name = "bactgraph"
+name = "BactGraph"
 version = "0.0.1"
 description = "A graph neural network for studying bacterial gene regulation"
 readme = "README.md"
@@ -20,11 +20,12 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
   "anndata",
   # for debug logging (referenced from the issue template)
-  "session-info",
+  "session-info2",
 ]
 optional-dependencies.dev = [
   "pre-commit",
@@ -36,7 +37,7 @@ optional-dependencies.doc = [
   "ipython",
   "myst-nb>=1.1",
   "pandas",
-  # Until pybtex >0.23.0 releases: https://bitbucket.org/pybtex-devs/pybtex/issues/169/
+  # Until pybtex >0.24.0 releases: https://bitbucket.org/pybtex-devs/pybtex/issues/169/
   "setuptools",
   "sphinx>=4",
   "sphinx-autodoc-typehints",
